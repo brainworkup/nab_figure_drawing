@@ -1,0 +1,1196 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NAB Figure Drawing Interactive Scoring Dashboard</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        .active-tab {
+            border-bottom: 2px solid #4f46e5;
+            color: #4f46e5;
+            font-weight: 600;
+        }
+        .active-left-tab {
+            background-color: #4f46e5;
+            color: white;
+            font-weight: 600;
+        }
+        @media print {
+            .no-print {
+                display: none !important;
+            }
+            .print-full {
+                width: 100% !important;
+                max-width: 100% !important;
+                box-shadow: none !important;
+                margin: 0 !important;
+                padding: 0 !important;
+            }
+        }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800 min-h-screen flex flex-col">
+
+    <!-- Header -->
+    <header class="bg-indigo-900 text-white shadow-md py-4 px-6 no-print">
+        <div class="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-4">
+            <div class="flex items-center gap-3">
+                <div class="bg-white/10 p-2 rounded-lg">
+                    <i class="fa-solid fa-brain text-indigo-300 text-2xl"></i>
+                </div>
+                <div>
+                    <h1 class="text-xl font-bold tracking-tight">NAB Figure Drawing Scoring Assistant</h1>
+                    <p class="text-xs text-indigo-200">Spatial Module • Multi-Form Scoring & Alignment Toolkit</p>
+                </div>
+            </div>
+            <div class="flex items-center gap-3">
+                <button onclick="window.print()" class="bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium py-2 px-4 rounded-lg shadow-sm transition flex items-center gap-2">
+                    <i class="fa-solid fa-print"></i> Print scoring sheet
+                </button>
+                <button onclick="resetScoring()" class="bg-slate-700 hover:bg-slate-600 text-slate-200 text-sm font-medium py-2 px-4 rounded-lg shadow-sm transition flex items-center gap-2">
+                    <i class="fa-solid fa-rotate"></i> Reset
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Container -->
+    <main class="flex-1 max-w-8xl w-full mx-auto p-4 md:p-6 grid grid-cols-1 lg:grid-cols-12 gap-6">
+        
+        <!-- Left Panel: Multi-Tab Workspace & Viewer (5 cols) -->
+        <section class="lg:col-span-5 flex flex-col gap-6 no-print">
+            
+            <!-- Workspace Navigation Cards -->
+            <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-2 flex gap-1 no-print">
+                <button onclick="showLeftTab('drawing-view-tab')" id="drawing-view-tab-btn" class="flex-1 py-1.5 px-3 rounded-lg text-xs font-semibold hover:bg-slate-50 transition active-left-tab">
+                    Examinee Drawing
+                </button>
+                <button onclick="showLeftTab('stimulus-ref-tab')" id="stimulus-ref-tab-btn" class="flex-1 py-1.5 px-3 rounded-lg text-xs font-semibold hover:bg-slate-50 transition text-slate-600">
+                    Stimulus Reference
+                </button>
+                <button onclick="showLeftTab('booklet-view-tab')" id="booklet-view-tab-btn" class="flex-1 py-1.5 px-3 rounded-lg text-xs font-semibold hover:bg-slate-50 transition text-slate-600">
+                    Booklet Pages
+                </button>
+            </div>
+
+            <!-- Tab A: Examinee Drawing Viewer -->
+            <div id="drawing-view-tab" class="left-tab-content bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                <div class="border-b border-slate-100 bg-slate-50 px-4 py-3 flex justify-between items-center">
+                    <h2 class="font-semibold text-slate-700 flex items-center gap-2">
+                        <i class="fa-solid fa-image text-slate-500"></i> Examinee Drawing Viewer
+                    </h2>
+                    <div class="flex items-center gap-2">
+                        <label for="image-upload" class="cursor-pointer bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 text-xs font-semibold py-1.5 px-3 rounded-lg shadow-sm transition flex items-center gap-1.5">
+                            <i class="fa-solid fa-cloud-arrow-up text-slate-500"></i> Upload Drawing
+                        </label>
+                        <input type="file" id="image-upload" accept="image/*" class="hidden" onchange="handleImageUpload(event)">
+                    </div>
+                </div>
+                
+                <div class="p-4 flex flex-col gap-4">
+                    <!-- Overlay Controls -->
+                    <div class="bg-slate-50 rounded-lg p-3 border border-slate-100 grid grid-cols-2 gap-3 text-xs">
+                        <div class="col-span-2 font-semibold text-slate-600 flex justify-between items-center">
+                            <span>Stimulus Overlay Controls (Form-Specific)</span>
+                            <button onclick="resetOverlay()" class="text-indigo-600 hover:text-indigo-800 font-bold">Reset Alignment</button>
+                        </div>
+                        <div>
+                            <label class="block text-slate-500 mb-1">Overlay Opacity: <span id="opacity-val">40%</span></label>
+                            <input type="range" id="overlay-opacity" min="0" max="100" value="40" oninput="updateOverlay()" class="w-full accent-indigo-600">
+                        </div>
+                        <div>
+                            <label class="block text-slate-500 mb-1">Scale: <span id="scale-val">1.0x</span></label>
+                            <input type="range" id="overlay-scale" min="50" max="200" value="100" oninput="updateOverlay()" class="w-full accent-indigo-600">
+                        </div>
+                        <div>
+                            <label class="block text-slate-500 mb-1">Rotation: <span id="rotate-val">0°</span></label>
+                            <input type="range" id="overlay-rotate" min="-180" max="180" value="0" oninput="updateOverlay()" class="w-full accent-indigo-600">
+                        </div>
+                        <div>
+                            <label class="block text-slate-500 mb-1">Horizontal Offset: <span id="x-val">0px</span></label>
+                            <input type="range" id="overlay-x" min="-200" max="200" value="0" oninput="updateOverlay()" class="w-full accent-indigo-600">
+                        </div>
+                    </div>
+
+                    <!-- Main Canvas Workspace -->
+                    <div class="relative border-2 border-dashed border-slate-200 rounded-lg overflow-hidden bg-slate-100 flex items-center justify-center min-h-[350px] aspect-[4/3]">
+                        <!-- Placeholder when no examinee drawing is loaded -->
+                        <div id="examinee-placeholder" class="absolute inset-0 flex flex-col items-center justify-center gap-2 text-slate-400 pointer-events-none z-0">
+                            <i class="fa-solid fa-pen-ruler text-3xl text-slate-300"></i>
+                            <p class="text-sm font-medium">No examinee drawing loaded</p>
+                            <p class="text-xs">Use <strong>Upload Drawing</strong> to add the patient's copy or recall figure</p>
+                        </div>
+
+                        <!-- Background Examinee Photo (hidden until uploaded or a local file is present) -->
+                        <img id="examinee-drawing" src="" alt="Examinee Drawing" class="hidden max-w-full max-h-full object-contain select-none transition-all duration-300 relative z-[1]">
+
+                        <!-- Element hover label (shown when scoring table row is hovered) -->
+                        <div id="element-highlight-badge" class="hidden absolute top-2 left-2 z-10 bg-indigo-600 text-white text-xs font-bold px-2 py-1 rounded shadow-lg pointer-events-none"></div>
+                        
+                        <!-- Stimulus image overlay (actual Form 2 figure from booklet) -->
+                        <div id="stimulus-overlay-container" class="absolute inset-0 pointer-events-none flex items-center justify-center transition-all duration-100 z-[2]">
+                            <img id="stimulus-overlay"
+                                 src="nab_figure_drawing_stimulus_form_02.png"
+                                 alt="Form 2 Stimulus Overlay"
+                                 class="max-w-full max-h-full object-contain select-none origin-center opacity-40 transition-opacity duration-200">
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tab B: Cropped Stimulus Diagram Reference -->
+            <div id="stimulus-ref-tab" class="left-tab-content bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden hidden">
+                <div class="border-b border-slate-100 bg-slate-50 px-4 py-3">
+                    <h2 class="font-semibold text-slate-700 flex items-center gap-2">
+                        <i class="fa-solid fa-shapes text-slate-500"></i> Form 2 Stimulus Target Model
+                    </h2>
+                </div>
+                <div class="p-4 flex flex-col gap-2">
+                    <img src="nab_figure_drawing_stimulus_form_02.png" alt="Form 2 Stimulus" class="w-full rounded-lg border border-slate-200 object-contain shadow-inner bg-white">
+                    <p class="text-[10px] text-slate-400 text-center leading-relaxed">Official Form 2 stimulus figure. Oval on left; square above center; triangle below left; arc top-right; X bottom-right.</p>
+                </div>
+            </div>
+
+            <!-- Tab C: Form Booklet Viewer -->
+            <div id="booklet-view-tab" class="left-tab-content bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden hidden">
+                <div class="border-b border-slate-100 bg-slate-50 px-4 py-3 flex justify-between items-center no-print">
+                    <h2 class="font-semibold text-slate-700 flex items-center gap-2">
+                        <i class="fa-solid fa-book-open text-slate-500"></i> Booklet Page Viewer
+                    </h2>
+                    <select id="booklet-page-select" onchange="changeBookletPage(this.value)" class="border rounded px-2 py-1 text-xs bg-white text-slate-700 font-semibold focus:outline-none">
+                        <option value="page_07_full.png">Page 7 (Administration)</option>
+                        <option value="page_08_full.png">Page 8 (Criteria & Accuracy)</option>
+                        <option value="page_09_full.png">Page 9 (Planning & Qual)</option>
+                    </select>
+                </div>
+                <div class="p-4 flex flex-col gap-3">
+                    <div class="border border-slate-200 rounded-lg overflow-hidden bg-slate-50 relative flex items-center justify-center min-h-[350px]">
+                        <img id="booklet-img" src="page_07_full.png" alt="Booklet Reference" class="max-w-full max-h-[600px] object-contain cursor-zoom-in" onclick="window.open(this.src)">
+                    </div>
+                </div>
+            </div>
+            
+        </section>
+
+        <!-- Right Panel: Scoring Suite (7 cols) -->
+        <section class="lg:col-span-7 flex flex-col gap-6 print-full">
+            
+            <!-- Patient Demographics Info Panel -->
+            <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-4 md:p-6">
+                <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border-b pb-3 mb-4">
+                    <h2 class="font-bold text-lg text-slate-800 flex items-center gap-2">
+                        <i class="fa-solid fa-user-check text-indigo-600"></i> Examinee Demographics & Admin Details
+                    </h2>
+                    <div class="flex items-center gap-2 text-xs">
+                        <span class="font-bold text-slate-500">Scoring Form:</span>
+                        <select id="form-version" onchange="changeFormVersion(this.value)" class="border rounded px-3 py-1 bg-indigo-50 font-bold text-indigo-800 focus:outline-none">
+                            <option value="Form 1">Form 1 (Oval Left, Rect Top-Middle)</option>
+                            <option value="Form 2" selected>Form 2 (Oval Left, Rect Top-Center)</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="grid grid-cols-2 md:grid-cols-3 gap-4 text-sm">
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-500 mb-1">Examinee Name</label>
+                        <input type="text" id="dem-name" value="Patient Alpha" class="w-full border rounded-lg px-3 py-1.5 focus:border-indigo-500 focus:outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-500 mb-1">ID Number</label>
+                        <input type="text" id="dem-id" value="NAB-9941" class="w-full border rounded-lg px-3 py-1.5 focus:border-indigo-500 focus:outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-500 mb-1">Date of Assessment</label>
+                        <input type="date" id="dem-date" value="2026-05-22" class="w-full border rounded-lg px-3 py-1.5 focus:border-indigo-500 focus:outline-none">
+                    </div>
+                </div>
+                
+                <!-- Administration Controls (Order & Times) -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6 pt-6 border-t border-slate-100">
+                    <!-- Copy Condition Admin -->
+                    <div class="bg-indigo-50/50 rounded-xl p-4 border border-indigo-100">
+                        <div class="flex justify-between items-center mb-3">
+                            <h3 class="font-bold text-sm text-indigo-900 flex items-center gap-1.5">
+                                <span class="bg-indigo-600 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs">C</span> Copy Condition
+                            </h3>
+                        </div>
+                        <div class="flex flex-col gap-3 text-xs text-indigo-950">
+                            <div>
+                                <label class="block font-semibold mb-1">Order of Colored Pen Use</label>
+                                <div id="copy-pens" class="flex flex-wrap items-center gap-1.5 min-h-[36px]">
+                                    <!-- Dynamic pens are added here -->
+                                </div>
+                                <div class="flex items-center gap-2 mt-2">
+                                    <button onclick="addPen('copy', 'Red')" class="bg-white border rounded py-1 px-2 hover:bg-slate-50 shadow-sm flex items-center gap-1 font-semibold text-slate-600">
+                                        <span class="w-2.5 h-2.5 rounded-full bg-red-500"></span> + Red
+                                    </button>
+                                    <button onclick="addPen('copy', 'Blue')" class="bg-white border rounded py-1 px-2 hover:bg-slate-50 shadow-sm flex items-center gap-1 font-semibold text-slate-600">
+                                        <span class="w-2.5 h-2.5 rounded-full bg-blue-500"></span> + Blue
+                                    </button>
+                                    <button onclick="addPen('copy', 'Green')" class="bg-white border rounded py-1 px-2 hover:bg-slate-50 shadow-sm flex items-center gap-1 font-semibold text-slate-600">
+                                        <span class="w-2.5 h-2.5 rounded-full bg-emerald-500"></span> + Green
+                                    </button>
+                                    <button onclick="addPen('copy', 'Orange')" class="bg-white border rounded py-1 px-2 hover:bg-slate-50 shadow-sm flex items-center gap-1 font-semibold text-slate-600">
+                                        <span class="w-2.5 h-2.5 rounded-full bg-amber-500"></span> + Amber
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="pt-2 border-t border-indigo-100">
+                                <label class="block font-semibold mb-1 text-indigo-900">Completion Time (seconds)</label>
+                                <input type="number" id="copy-time" value="125" oninput="updateCalculations()" class="w-32 border rounded-lg px-3 py-1 text-sm font-semibold focus:border-indigo-500 focus:outline-none bg-white">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Recall Condition Admin -->
+                    <div class="bg-emerald-50/50 rounded-xl p-4 border border-emerald-100">
+                        <div class="flex justify-between items-center mb-3">
+                            <h3 class="font-bold text-sm text-emerald-900 flex items-center gap-1.5">
+                                <span class="bg-emerald-600 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs">R</span> Immediate Recall
+                            </h3>
+                        </div>
+                        <div class="flex flex-col gap-3 text-xs text-emerald-950">
+                            <div>
+                                <label class="block font-semibold mb-1">Order of Colored Pen Use</label>
+                                <div id="recall-pens" class="flex flex-wrap items-center gap-1.5 min-h-[36px]">
+                                    <!-- Dynamic pens -->
+                                </div>
+                                <div class="flex items-center gap-2 mt-2">
+                                    <button onclick="addPen('recall', 'Red')" class="bg-white border rounded py-1 px-2 hover:bg-slate-50 shadow-sm flex items-center gap-1 font-semibold text-slate-600">
+                                        <span class="w-2.5 h-2.5 rounded-full bg-red-500"></span> + Red
+                                    </button>
+                                    <button onclick="addPen('recall', 'Blue')" class="bg-white border rounded py-1 px-2 hover:bg-slate-50 shadow-sm flex items-center gap-1 font-semibold text-slate-600">
+                                        <span class="w-2.5 h-2.5 rounded-full bg-blue-500"></span> + Blue
+                                    </button>
+                                    <button onclick="addPen('recall', 'Green')" class="bg-white border rounded py-1 px-2 hover:bg-slate-50 shadow-sm flex items-center gap-1 font-semibold text-slate-600">
+                                        <span class="w-2.5 h-2.5 rounded-full bg-emerald-500"></span> + Green
+                                    </button>
+                                    <button onclick="addPen('recall', 'Orange')" class="bg-white border rounded py-1 px-2 hover:bg-slate-50 shadow-sm flex items-center gap-1 font-semibold text-slate-600">
+                                        <span class="w-2.5 h-2.5 rounded-full bg-amber-500"></span> + Amber
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="pt-2 border-t border-emerald-100">
+                                <label class="block font-semibold mb-1 text-emerald-900">Completion Time (seconds)</label>
+                                <input type="number" id="recall-time" value="95" oninput="updateCalculations()" class="w-32 border rounded-lg px-3 py-1 text-sm font-semibold focus:border-indigo-500 focus:outline-none bg-white">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Scoring Workspace Navigation Tabs -->
+            <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-2 flex gap-1 no-print">
+                <button onclick="showScoringTab('elements-tab')" id="elements-tab-btn" class="flex-1 py-2 px-4 rounded-lg text-sm font-semibold hover:bg-slate-50 transition active-tab">
+                    1. Element Accuracy (0-33)
+                </button>
+                <button onclick="showScoringTab('frag-plan-tab')" id="frag-plan-tab-btn" class="flex-1 py-2 px-4 rounded-lg text-sm font-semibold hover:bg-slate-50 transition text-slate-500">
+                    2. Fragmentation & Planning
+                </button>
+                <button onclick="showScoringTab('features-tab')" id="features-tab-btn" class="flex-1 py-2 px-4 rounded-lg text-sm font-semibold hover:bg-slate-50 transition text-slate-500">
+                    3. Qualitative Features
+                </button>
+                <button onclick="showScoringTab('summary-tab')" id="summary-tab-btn" class="flex-1 py-2 px-4 rounded-lg text-sm font-semibold hover:bg-slate-50 transition text-slate-500">
+                    4. Score Summary & Report
+                </button>
+            </div>
+
+            <!-- TAB 1: Elements accuracy table -->
+            <div id="elements-tab" class="scoring-tab-content bg-white rounded-xl shadow-sm border border-slate-200 p-4 md:p-6">
+                <div class="flex justify-between items-center border-b pb-3 mb-4">
+                    <h3 class="font-bold text-base text-slate-800" id="elements-tab-title">Element Accuracy Scoring Criteria</h3>
+                    <div class="flex items-center gap-4 text-xs font-semibold bg-slate-100 p-2 rounded-lg border border-slate-200">
+                        <span class="flex items-center gap-1 text-indigo-800"><span class="w-2.5 h-2.5 bg-indigo-600 rounded"></span> Copy Raw Score: <strong id="copy-total-badge" class="text-sm">0</strong>/33</span>
+                        <span class="flex items-center gap-1 text-emerald-800"><span class="w-2.5 h-2.5 bg-emerald-600 rounded"></span> Recall Raw Score: <strong id="recall-total-badge" class="text-sm">0</strong>/33</span>
+                    </div>
+                </div>
+
+                <!-- Scoring Rules Helper -->
+                <div class="bg-blue-50/50 rounded-xl p-3 border border-blue-100 text-xs mb-4 text-blue-900 leading-relaxed">
+                    <strong class="font-bold flex items-center gap-1 text-blue-950 mb-1"><i class="fa-solid fa-circle-info"></i> Standard Scoring Rubric:</strong>
+                    <div class="grid grid-cols-2 md:grid-cols-4 gap-2 mt-1">
+                        <div><strong>Score 3:</strong> Present, accurate & placed correctly</div>
+                        <div><strong>Score 2:</strong> Accurate but misplaced OR placed but inaccurate</div>
+                        <div><strong>Score 1:</strong> Present but inaccurate AND misplaced</div>
+                        <div><strong>Score 0:</strong> Element is not present/absent</div>
+                    </div>
+                </div>
+
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left border-collapse text-xs md:text-sm">
+                        <thead>
+                            <tr class="border-b border-slate-100 text-slate-500">
+                                <th class="py-2.5">Element</th>
+                                <th class="py-2.5 text-center px-2">Copy Score</th>
+                                <th class="py-2.5 text-center px-2">Recall Score</th>
+                            </tr>
+                        </thead>
+                        <tbody id="elements-table-body">
+                            <!-- Dynamic Rows -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- TAB 2: Fragmentation & Planning -->
+            <div id="frag-plan-tab" class="scoring-tab-content bg-white rounded-xl shadow-sm border border-slate-200 p-4 md:p-6 hidden">
+                <h3 class="font-bold text-base text-slate-800 border-b pb-2 mb-4">Fragmentation & Planning Checklists</h3>
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    
+                    <!-- Fragmentation Block -->
+                    <div class="border border-slate-150 rounded-xl p-4 bg-slate-50/30">
+                        <h4 class="font-bold text-sm text-indigo-900 flex items-center justify-between mb-3 border-b pb-1">
+                            <span>Fragmentation Checklist (0 or 1)</span>
+                            <span class="text-xs bg-indigo-100 text-indigo-800 px-2 py-0.5 rounded-full">Max = 5</span>
+                        </h4>
+                        <p class="text-xs text-slate-500 mb-3">Check element if it was drawn **consecutively** (unfragmented, single pen stroke or consecutive strokes). Unchecked = Fragmented (0 pts).</p>
+                        
+                        <div class="flex flex-col gap-3">
+                            <!-- Element 1 -->
+                            <div class="flex items-center justify-between p-2 rounded border border-slate-100 bg-white">
+                                <span class="text-xs font-semibold" id="frag-name-1">1. Large rectangle</span>
+                                <div class="flex gap-4">
+                                    <label class="flex items-center gap-1 cursor-pointer">
+                                        <input type="checkbox" id="copy-frag-1" onchange="updateCalculations()" class="accent-indigo-600"> Copy
+                                    </label>
+                                    <label class="flex items-center gap-1 cursor-pointer">
+                                        <input type="checkbox" id="recall-frag-1" onchange="updateCalculations()" class="accent-indigo-600"> Recall
+                                    </label>
+                                </div>
+                            </div>
+                            <!-- Element 2 -->
+                            <div class="flex items-center justify-between p-2 rounded border border-slate-100 bg-white">
+                                <span class="text-xs font-semibold" id="frag-name-2">2. Vertical bisector</span>
+                                <div class="flex gap-4">
+                                    <label class="flex items-center gap-1 cursor-pointer">
+                                        <input type="checkbox" id="copy-frag-2" onchange="updateCalculations()" class="accent-indigo-600"> Copy
+                                    </label>
+                                    <label class="flex items-center gap-1 cursor-pointer">
+                                        <input type="checkbox" id="recall-frag-2" onchange="updateCalculations()" class="accent-indigo-600"> Recall
+                                    </label>
+                                </div>
+                            </div>
+                            <!-- Element 3 -->
+                            <div class="flex items-center justify-between p-2 rounded border border-slate-100 bg-white">
+                                <span class="text-xs font-semibold" id="frag-name-3">3. Horizontal bisector</span>
+                                <div class="flex gap-4">
+                                    <label class="flex items-center gap-1 cursor-pointer">
+                                        <input type="checkbox" id="copy-frag-3" onchange="updateCalculations()" class="accent-indigo-600"> Copy
+                                    </label>
+                                    <label class="flex items-center gap-1 cursor-pointer">
+                                        <input type="checkbox" id="recall-frag-3" onchange="updateCalculations()" class="accent-indigo-600"> Recall
+                                    </label>
+                                </div>
+                            </div>
+                            <!-- Element 4 -->
+                            <div class="flex items-center justify-between p-2 rounded border border-slate-100 bg-white">
+                                <span class="text-xs font-semibold" id="frag-name-4">4. "X" detail</span>
+                                <div class="flex gap-4">
+                                    <label class="flex items-center gap-1 cursor-pointer">
+                                        <input type="checkbox" id="copy-frag-4" onchange="updateCalculations()" class="accent-indigo-600"> Copy
+                                    </label>
+                                    <label class="flex items-center gap-1 cursor-pointer">
+                                        <input type="checkbox" id="recall-frag-4" onchange="updateCalculations()" class="accent-indigo-600"> Recall
+                                    </label>
+                                </div>
+                            </div>
+                            <!-- Element 5 -->
+                            <div class="flex items-center justify-between p-2 rounded border border-slate-100 bg-white">
+                                <span class="text-xs font-semibold" id="frag-name-5">5. Oval</span>
+                                <div class="flex gap-4">
+                                    <label class="flex items-center gap-1 cursor-pointer">
+                                        <input type="checkbox" id="copy-frag-5" onchange="updateCalculations()" class="accent-indigo-600"> Copy
+                                    </label>
+                                    <label class="flex items-center gap-1 cursor-pointer">
+                                        <input type="checkbox" id="recall-frag-5" onchange="updateCalculations()" class="accent-indigo-600"> Recall
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Planning Block -->
+                    <div class="border border-slate-150 rounded-xl p-4 bg-slate-50/30">
+                        <h4 class="font-bold text-sm text-indigo-900 flex items-center justify-between mb-3 border-b pb-1">
+                            <span>Planning Criteria Checklist (0-5)</span>
+                            <span class="text-xs bg-indigo-100 text-indigo-800 px-2 py-0.5 rounded-full">Automated Scoring</span>
+                        </h4>
+                        <p class="text-xs text-slate-500 mb-3">Complete the checklists for **Copy** and **Immediate Recall** based on construction behavior.</p>
+                        
+                        <!-- Checklists -->
+                        <div class="flex flex-col gap-4 text-xs">
+                            <!-- Copy planning criteria -->
+                            <div class="border border-slate-200 rounded p-2.5 bg-white">
+                                <strong class="text-indigo-950 font-bold mb-2 block">Copy planning items:</strong>
+                                <div class="flex flex-col gap-2">
+                                    <label class="flex items-start gap-2 cursor-pointer">
+                                        <input type="checkbox" id="copy-plan-rect-first" onchange="onPlanCheckChange('copy', 'rect-first')" class="mt-0.5 accent-indigo-600">
+                                        <span>Entire outer rectangle (or outer perimeter including E6 & E7) drawn first.</span>
+                                    </label>
+                                    <label class="flex items-start gap-2 cursor-pointer">
+                                        <input type="checkbox" id="copy-plan-part-first" onchange="updateCalculations()" class="mt-0.5 accent-indigo-600">
+                                        <span>At least PART of the outer rectangle (or outer perimeter) drawn first.</span>
+                                    </label>
+                                    <label class="flex items-start gap-2 cursor-pointer">
+                                        <input type="checkbox" id="copy-plan-bisect-next" onchange="updateCalculations()" class="mt-0.5 accent-indigo-600">
+                                        <span>Bisectors (E2 & E3) drawn immediately follow outer rectangle.</span>
+                                    </label>
+                                    <label class="flex items-start gap-2 cursor-pointer">
+                                        <input type="checkbox" id="copy-plan-centered" onchange="updateCalculations()" class="mt-0.5 accent-indigo-600">
+                                        <span>Figure is relatively centered on page (room to fit whole figure).</span>
+                                    </label>
+                                    <label class="flex items-start gap-2 cursor-pointer">
+                                        <input type="checkbox" id="copy-plan-systematic" onchange="updateCalculations()" class="mt-0.5 accent-indigo-600">
+                                        <span>Elements are drawn in a systematic/logical order (not random).</span>
+                                    </label>
+                                    <label class="flex items-start gap-2 cursor-pointer">
+                                        <input type="checkbox" id="copy-plan-quadrants" onchange="updateCalculations()" class="mt-0.5 accent-indigo-600">
+                                        <span>Quadrants of the figure are relatively equivalent in size.</span>
+                                    </label>
+                                    <label class="flex items-start gap-2 cursor-pointer">
+                                        <input type="checkbox" id="copy-plan-recognizable" onchange="updateCalculations()" class="mt-0.5 accent-indigo-600">
+                                        <span>Entire figure is easily recognizable (not distorted).</span>
+                                    </label>
+                                    <label class="flex items-start gap-2 cursor-pointer">
+                                        <input type="checkbox" id="copy-plan-gen-recog" onchange="updateCalculations()" class="mt-0.5 accent-indigo-600">
+                                        <span>Entire figure is generally recognizable (not significantly distorted).</span>
+                                    </label>
+                                </div>
+                            </div>
+                            
+                            <!-- Recall planning criteria -->
+                            <div class="border border-slate-200 rounded p-2.5 bg-white">
+                                <strong class="text-emerald-950 font-bold mb-2 block">Recall planning items:</strong>
+                                <div class="flex flex-col gap-2">
+                                    <label class="flex items-start gap-2 cursor-pointer">
+                                        <input type="checkbox" id="recall-plan-rect-first" onchange="onPlanCheckChange('recall', 'rect-first')" class="mt-0.5 accent-emerald-600">
+                                        <span>Entire outer rectangle (or outer perimeter including E6 & E7) drawn first.</span>
+                                    </label>
+                                    <label class="flex items-start gap-2 cursor-pointer">
+                                        <input type="checkbox" id="recall-plan-part-first" onchange="updateCalculations()" class="mt-0.5 accent-emerald-600">
+                                        <span>At least PART of the outer rectangle (or outer perimeter) drawn first.</span>
+                                    </label>
+                                    <label class="flex items-start gap-2 cursor-pointer">
+                                        <input type="checkbox" id="recall-plan-bisect-next" onchange="updateCalculations()" class="mt-0.5 accent-emerald-600">
+                                        <span>Bisectors (E2 & E3) drawn immediately follow outer rectangle.</span>
+                                    </label>
+                                    <label class="flex items-start gap-2 cursor-pointer">
+                                        <input type="checkbox" id="recall-plan-centered" onchange="updateCalculations()" class="mt-0.5 accent-emerald-600">
+                                        <span>Figure is relatively centered on page (room to fit whole figure).</span>
+                                    </label>
+                                    <label class="flex items-start gap-2 cursor-pointer">
+                                        <input type="checkbox" id="recall-plan-systematic" onchange="updateCalculations()" class="mt-0.5 accent-emerald-600">
+                                        <span>Elements are drawn in a systematic/logical order (not random).</span>
+                                    </label>
+                                    <label class="flex items-start gap-2 cursor-pointer">
+                                        <input type="checkbox" id="recall-plan-quadrants" onchange="updateCalculations()" class="mt-0.5 accent-emerald-600">
+                                        <span>Quadrants of the figure are relatively equivalent in size.</span>
+                                    </label>
+                                    <label class="flex items-start gap-2 cursor-pointer">
+                                        <input type="checkbox" id="recall-plan-recognizable" onchange="updateCalculations()" class="mt-0.5 accent-emerald-600">
+                                        <span>Entire figure is easily recognizable (not distorted).</span>
+                                    </label>
+                                    <label class="flex items-start gap-2 cursor-pointer">
+                                        <input type="checkbox" id="recall-plan-gen-recog" onchange="updateCalculations()" class="mt-0.5 accent-emerald-600">
+                                        <span>Entire figure is generally recognizable (not significantly distorted).</span>
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TAB 3: Qualitative Features -->
+            <div id="features-tab" class="scoring-tab-content bg-white rounded-xl shadow-sm border border-slate-200 p-4 md:p-6 hidden">
+                <h3 class="font-bold text-base text-slate-800 border-b pb-2 mb-4">Qualitative Clinical Observations</h3>
+                <p class="text-xs text-slate-500 mb-4">Identify clinical behaviors or structural features seen in either the Copy or Immediate Recall drawing conditions.</p>
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <!-- Copy condition features -->
+                    <div class="border border-slate-150 rounded-xl p-4 bg-slate-50/50">
+                        <h4 class="font-bold text-xs text-indigo-900 border-b pb-1 mb-3">Copy Condition observations:</h4>
+                        <div class="flex flex-col gap-2.5 text-xs">
+                            <label class="flex items-start gap-2 cursor-pointer">
+                                <input type="checkbox" id="copy-feat-perseverative" onchange="updateCalculations()" class="mt-0.5 accent-indigo-600">
+                                <div><strong>Perseverative:</strong> Inappropriate replication or repetition of any element in the figure.</div>
+                            </label>
+                            <label class="flex items-start gap-2 cursor-pointer">
+                                <input type="checkbox" id="copy-feat-confabulative" onchange="updateCalculations()" class="mt-0.5 accent-indigo-600">
+                                <div><strong>Confabulative:</strong> Added details or distortions that do not exist in the original stimulus.</div>
+                            </label>
+                            <label class="flex items-start gap-2 cursor-pointer">
+                                <input type="checkbox" id="copy-feat-expanded-v" onchange="updateCalculations()" class="mt-0.5 accent-indigo-600">
+                                <div><strong>Expanded vertically:</strong> Figure is disproportionately stretched vertically.</div>
+                            </label>
+                            <label class="flex items-start gap-2 cursor-pointer">
+                                <input type="checkbox" id="copy-feat-expanded-h" onchange="updateCalculations()" class="mt-0.5 accent-indigo-600">
+                                <div><strong>Expanded horizontally:</strong> Figure is disproportionately stretched horizontally.</div>
+                            </label>
+                            <label class="flex items-start gap-2 cursor-pointer">
+                                <input type="checkbox" id="copy-feat-micrographic" onchange="updateCalculations()" class="mt-0.5 accent-indigo-600">
+                                <div><strong>Reduced size / micrographic:</strong> Figure size is significantly smaller than the stimulus.</div>
+                            </label>
+                            <label class="flex items-start gap-2 cursor-pointer">
+                                <input type="checkbox" id="copy-feat-asym-left" onchange="updateCalculations()" class="mt-0.5 accent-indigo-600">
+                                <div><strong>Asymmetrical: Left side distorted / missing:</strong> Elements on the left show distortion or omission.</div>
+                            </label>
+                            <label class="flex items-start gap-2 cursor-pointer">
+                                <input type="checkbox" id="copy-feat-asym-right" onchange="updateCalculations()" class="mt-0.5 accent-indigo-600">
+                                <div><strong>Asymmetrical: Right side distorted / missing:</strong> Elements on the right show distortion or omission.</div>
+                            </label>
+                            <div class="border-t pt-2 mt-1 border-indigo-100 flex flex-col gap-2">
+                                <label class="flex items-start gap-2 cursor-pointer">
+                                    <input type="checkbox" id="copy-feat-neglect-left" onchange="updateCalculations()" class="mt-0.5 accent-indigo-600">
+                                    <div><strong>Neglect: Left:</strong> Demonstrates unilateral visual neglect of the left hemispace.</div>
+                                </label>
+                                <label class="flex items-start gap-2 cursor-pointer">
+                                    <input type="checkbox" id="copy-feat-neglect-right" onchange="updateCalculations()" class="mt-0.5 accent-indigo-600">
+                                    <div><strong>Neglect: Right:</strong> Demonstrates unilateral visual neglect of the right hemispace.</div>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Recall condition features -->
+                    <div class="border border-slate-150 rounded-xl p-4 bg-slate-50/50">
+                        <h4 class="font-bold text-xs text-emerald-900 border-b pb-1 mb-3">Immediate Recall observations:</h4>
+                        <div class="flex flex-col gap-2.5 text-xs">
+                            <label class="flex items-start gap-2 cursor-pointer">
+                                <input type="checkbox" id="recall-feat-perseverative" onchange="updateCalculations()" class="mt-0.5 accent-emerald-600">
+                                <div><strong>Perseverative:</strong> Inappropriate replication or repetition of any element.</div>
+                            </label>
+                            <label class="flex items-start gap-2 cursor-pointer">
+                                <input type="checkbox" id="recall-feat-confabulative" onchange="updateCalculations()" class="mt-0.5 accent-emerald-600">
+                                <div><strong>Confabulative:</strong> Recall introduces unrelated items or imaginary details.</div>
+                            </label>
+                            <label class="flex items-start gap-2 cursor-pointer">
+                                <input type="checkbox" id="recall-feat-expanded-v" onchange="updateCalculations()" class="mt-0.5 accent-emerald-600">
+                                <div><strong>Expanded vertically:</strong> Figure stretched vertically.</div>
+                            </label>
+                            <label class="flex items-start gap-2 cursor-pointer">
+                                <input type="checkbox" id="recall-feat-expanded-h" onchange="updateCalculations()" class="mt-0.5 accent-emerald-600">
+                                <div><strong>Expanded horizontally:</strong> Figure stretched horizontally.</div>
+                            </label>
+                            <label class="flex items-start gap-2 cursor-pointer">
+                                <input type="checkbox" id="recall-feat-micrographic" onchange="updateCalculations()" class="mt-0.5 accent-emerald-600">
+                                <div><strong>Reduced size / micrographic:</strong> Recall is extremely tiny.</div>
+                            </label>
+                            <label class="flex items-start gap-2 cursor-pointer">
+                                <input type="checkbox" id="recall-feat-asym-left" onchange="updateCalculations()" class="mt-0.5 accent-emerald-600">
+                                <div><strong>Asymmetrical: Left side distorted / missing:</strong> Neglect of left-hemispace elements during recall.</div>
+                            </label>
+                            <label class="flex items-start gap-2 cursor-pointer">
+                                <input type="checkbox" id="recall-feat-asym-right" onchange="updateCalculations()" class="mt-0.5 accent-emerald-600">
+                                <div><strong>Asymmetrical: Right side distorted / missing:</strong> Neglect of right-hemispace elements.</div>
+                            </label>
+                            <div class="border-t pt-2 mt-1 border-emerald-100 flex flex-col gap-2">
+                                <label class="flex items-start gap-2 cursor-pointer">
+                                    <input type="checkbox" id="recall-feat-neglect-left" onchange="updateCalculations()" class="mt-0.5 accent-emerald-600">
+                                    <div><strong>Neglect: Left:</strong> Demonstrates unilateral visual neglect of the left hemispace during recall.</div>
+                                </label>
+                                <label class="flex items-start gap-2 cursor-pointer">
+                                    <input type="checkbox" id="recall-feat-neglect-right" onchange="updateCalculations()" class="mt-0.5 accent-emerald-600">
+                                    <div><strong>Neglect: Right:</strong> Demonstrates unilateral visual neglect of the right hemispace during recall.</div>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TAB 4: Summary & Clinical Report -->
+            <div id="summary-tab" class="scoring-tab-content bg-white rounded-xl shadow-sm border border-slate-200 p-4 md:p-6 hidden print-full">
+                <h3 class="font-bold text-base text-slate-800 border-b pb-2 mb-4">Neuropsychological Score Summary & Report</h3>
+                
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+                    <div class="bg-indigo-50 border border-indigo-100 rounded-xl p-3 text-center">
+                        <div class="text-[10px] font-bold text-indigo-800 tracking-wider uppercase mb-0.5">Copy Raw Score</div>
+                        <div class="text-2xl font-black text-indigo-900" id="copy-total">0/33</div>
+                    </div>
+                    <div class="bg-emerald-50 border border-emerald-100 rounded-xl p-3 text-center">
+                        <div class="text-[10px] font-bold text-emerald-800 tracking-wider uppercase mb-0.5">Recall Raw Score</div>
+                        <div class="text-2xl font-black text-emerald-900" id="recall-total">0/33</div>
+                    </div>
+                    <div class="bg-violet-50 border border-violet-100 rounded-xl p-3 text-center">
+                        <div class="text-[10px] font-bold text-violet-800 tracking-wider uppercase mb-0.5">Copy Organization</div>
+                        <div class="text-2xl font-black text-violet-900" id="copy-org">0/10</div>
+                        <div class="text-[10px] text-violet-600" id="copy-org-sub">F:0 | P:0</div>
+                    </div>
+                    <div class="bg-sky-50 border border-sky-100 rounded-xl p-3 text-center">
+                        <div class="text-[10px] font-bold text-sky-800 tracking-wider uppercase mb-0.5">Percent Retention</div>
+                        <div class="text-2xl font-black text-sky-900" id="pct-retention">0%</div>
+                        <div class="text-[10px] text-sky-600">Recall / Copy</div>
+                    </div>
+                </div>
+
+                <!-- Score Breakdowns Breakdown Table -->
+                <div class="border border-slate-200 rounded-xl overflow-hidden mb-6">
+                    <table class="w-full text-left text-xs md:text-sm border-collapse">
+                        <thead class="bg-slate-50 border-b border-slate-200 text-slate-600">
+                            <tr>
+                                <th class="p-3 font-semibold">Assessment Condition</th>
+                                <th class="p-3 font-semibold text-center">Raw Score (max 33)</th>
+                                <th class="p-3 font-semibold text-center">Fragmentation (max 5)</th>
+                                <th class="p-3 font-semibold text-center">Planning (max 5)</th>
+                                <th class="p-3 font-semibold text-center">Organization (max 10)</th>
+                                <th class="p-3 font-semibold text-center">Time (seconds)</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-100">
+                            <tr>
+                                <td class="p-3 font-semibold text-indigo-900">Figure Drawing - Copy</td>
+                                <td class="p-3 text-center font-bold" id="tbl-copy-raw">0</td>
+                                <td class="p-3 text-center" id="tbl-copy-frag">0</td>
+                                <td class="p-3 text-center" id="tbl-copy-plan">0</td>
+                                <td class="p-3 text-center font-bold text-violet-900" id="tbl-copy-org">0</td>
+                                <td class="p-3 text-center" id="tbl-copy-time">0s</td>
+                            </tr>
+                            <tr>
+                                <td class="p-3 font-semibold text-emerald-900">Figure Drawing - Immediate Recall</td>
+                                <td class="p-3 text-center font-bold" id="tbl-recall-raw">0</td>
+                                <td class="p-3 text-center" id="tbl-recall-frag">0</td>
+                                <td class="p-3 text-center" id="tbl-recall-plan">0</td>
+                                <td class="p-3 text-center font-bold text-violet-900" id="tbl-recall-org">0</td>
+                                <td class="p-3 text-center" id="tbl-recall-time">0s</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Qualitative Feature Summary -->
+                <div class="bg-slate-50 border border-slate-200 rounded-xl p-4 mb-6 text-xs leading-relaxed">
+                    <strong class="font-bold text-slate-800 mb-1 block">Active Qualitative Features:</strong>
+                    <div id="qualitative-active-list" class="flex flex-wrap gap-1.5 mt-2">
+                        <!-- Filled dynamically -->
+                        <span class="text-slate-400 italic">No special qualitative features checked.</span>
+                    </div>
+                </div>
+
+                <!-- Clinical Narrative Block -->
+                <div class="no-print">
+                    <h4 class="font-bold text-sm text-slate-800 mb-2">Auto-Generated Clinical Narrative Draft</h4>
+                    <p class="text-xs text-slate-500 mb-3">Below is a clinical draft based on the calculated scores. You can edit this text directly and print the page.</p>
+                    <textarea id="clinical-narrative" rows="6" class="w-full border rounded-xl p-3 text-xs md:text-sm font-normal focus:border-indigo-500 focus:outline-none bg-slate-50 leading-relaxed text-slate-700"></textarea>
+                </div>
+            </div>
+
+        </section>
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-slate-100 border-t py-4 text-center text-xs text-slate-500 no-print">
+        NAB Figure Drawing Scoring Dashboard • Created for joey
+    </footer>
+
+    <!-- JS Logic -->
+    <script>
+        const form1Elements = [
+            { id: 1, name: "Large rectangle", cat: "Structural", desc: "Main central 4-sided figure." },
+            { id: 2, name: "Vertical bisector", cat: "Structural", desc: "Vertical line dividing the large rectangle in half." },
+            { id: 3, name: "Horizontal bisector", cat: "Structural", desc: "Horizontal line dividing the large rectangle in half." },
+            { id: 4, name: "X in lower right quadrant", cat: "Detail", desc: "Cross shape inside bottom-right quadrant (spans to E10 line)." },
+            { id: 5, name: "Oval", cat: "Detail", desc: "Ellipse centered on the left vertical detail line (E8)." },
+            { id: 6, name: "Rectangle above top-middle", cat: "Structural Attachment", desc: "Small box attached above top edge, centered on vertical bisector." },
+            { id: 7, name: "Triangle under bottom left", cat: "Structural Attachment", desc: "Small sharp triangle attached below bottom-left corner." },
+            { id: 8, name: "Vertical line in left half", cat: "Detail", desc: "Vertical line dividing the left half in half." },
+            { id: 9, name: "Diagonal line in bottom left", cat: "Detail", desc: "Slanted line inside bottom-left quadrant, ending at E8." },
+            { id: 10, name: "Vertical line in top right", cat: "Detail", desc: "Vertical line dividing the top-right quadrant in half." },
+            { id: 11, name: "Arc in top right", cat: "Detail", desc: "Curved line inside top-right quadrant." }
+        ];
+
+        const form2Elements = [
+            { id: 1, name: "Large rectangle", cat: "Structural", desc: "Main central 4-sided figure. Rotation > 20° is misplaced." },
+            { id: 2, name: "Vertical bisector", cat: "Structural", desc: "Vertical line dividing the large rectangle in half." },
+            { id: 3, name: "Horizontal bisector", cat: "Structural", desc: "Horizontal line dividing the large rectangle in half." },
+            { id: 4, name: "X in lower right quadrant", cat: "Detail", desc: "Cross shape inside bottom-right quadrant (Form 2 Mirrored Layout)." },
+            { id: 5, name: "Oval", cat: "Detail", desc: "Horizontal ellipse in the left half, centered on the horizontal bisector." },
+            { id: 6, name: "Rectangle above top center", cat: "Structural Attachment", desc: "Small square attached above the center column." },
+            { id: 7, name: "Triangle under bottom left", cat: "Structural Attachment", desc: "Small sharp triangle attached below bottom-left quadrant." },
+            { id: 8, name: "Vertical line in left half", cat: "Detail", desc: "Vertical line in left half of main rectangle." },
+            { id: 9, name: "Diagonal line in bottom left", cat: "Detail", desc: "Slanted line inside bottom-left quadrant." },
+            { id: 10, name: "Vertical line in top right", cat: "Detail", desc: "Vertical line inside top-right quadrant." },
+            { id: 11, name: "Arc in top right", cat: "Detail", desc: "Curved line inside top-right quadrant." }
+        ];
+
+        let elementData = form2Elements; // Default to Form 2 for this dashboard kit
+
+        // Scoring states
+        let copyScores = {};
+        let recallScores = {};
+        let copyPens = ["Green", "Orange", "Green"];
+        let recallPens = ["Red", "Blue"];
+
+        // Init
+        elementData.forEach(elem => {
+            copyScores[elem.id] = 0;
+            recallScores[elem.id] = 0;
+        });
+
+        // Generate elements accuracy table dynamically
+        function renderTable() {
+            const tableBody = document.getElementById("elements-table-body");
+            tableBody.innerHTML = "";
+            elementData.forEach(elem => {
+                const row = document.createElement("tr");
+                row.className = "border-b border-slate-100 hover:bg-slate-50/50 transition group";
+                row.onmouseenter = () => highlightStimulusElement(elem.id, true);
+                row.onmouseleave = () => highlightStimulusElement(elem.id, false);
+
+                const cVal = copyScores[elem.id] || 0;
+                const rVal = recallScores[elem.id] || 0;
+
+                row.innerHTML = `
+                    <td class="py-2">
+                        <div class="font-bold text-slate-800">${elem.id}. ${elem.name}</div>
+                        <div class="text-[10px] text-slate-400 font-medium">${elem.cat} • ${elem.desc}</div>
+                    </td>
+                    <td class="py-2 text-center px-2">
+                        <div class="inline-flex rounded-lg border border-slate-200 p-0.5 bg-slate-50">
+                            ${[0,1,2,3].map(score => `
+                                <button onclick="setScore('copy', ${elem.id}, ${score})" id="btn-copy-${elem.id}-${score}" class="w-8 py-1 rounded-md text-xs font-bold transition duration-150 ${score === cVal ? 'bg-indigo-600 text-white font-black shadow-sm' : 'text-slate-500 hover:bg-slate-200/50 hover:text-slate-700'}">
+                                    ${score}
+                                </button>
+                            `).join("")}
+                        </div>
+                    </td>
+                    <td class="py-2 text-center px-2">
+                        <div class="inline-flex rounded-lg border border-slate-200 p-0.5 bg-slate-50">
+                            ${[0,1,2,3].map(score => `
+                                <button onclick="setScore('recall', ${elem.id}, ${score})" id="btn-recall-${elem.id}-${score}" class="w-8 py-1 rounded-md text-xs font-bold transition duration-150 ${score === rVal ? 'bg-emerald-600 text-white font-black shadow-sm' : 'text-slate-500 hover:bg-slate-200/50 hover:text-slate-700'}">
+                                    ${score}
+                                </button>
+                            `).join("")}
+                        </div>
+                    </td>
+                `;
+                tableBody.appendChild(row);
+            });
+
+            // Update fragmentation names too
+            for (let i = 1; i <= 5; i++) {
+                document.getElementById(`frag-name-${i}`).textContent = `${i}. ${elementData[i-1].name}`;
+            }
+        }
+
+        function setScore(cond, elemId, score) {
+            if (cond === 'copy') {
+                copyScores[elemId] = score;
+            } else {
+                recallScores[elemId] = score;
+            }
+            renderTable();
+            updateCalculations();
+        }
+
+        function highlightStimulusElement(id, active) {
+            const badge = document.getElementById("element-highlight-badge");
+            const overlay = document.getElementById("stimulus-overlay");
+            const elem = elementData.find(e => e.id === id);
+            if (!badge || !overlay || !elem) return;
+
+            if (active) {
+                badge.textContent = `Element ${id}: ${elem.name}`;
+                badge.classList.remove("hidden");
+                overlay.style.filter = "drop-shadow(0 0 6px rgba(79, 70, 229, 0.75))";
+            } else {
+                badge.classList.add("hidden");
+                overlay.style.filter = "none";
+            }
+        }
+
+        // Form Version Switcher
+        function changeFormVersion(ver) {
+            const selectEl = document.getElementById("form-version");
+            selectEl.value = ver;
+
+            if (ver === 'Form 1') {
+                elementData = form1Elements;
+                document.getElementById("elements-tab-title").textContent = "Element Accuracy Scoring Criteria (Form 1 Standard)";
+            } else {
+                elementData = form2Elements;
+                document.getElementById("elements-tab-title").textContent = "Element Accuracy Scoring Criteria (Form 2 Mirrored)";
+            }
+            updateStimulusOverlay(ver);
+            renderTable();
+            updateCalculations();
+        }
+
+        const STIMULUS_IMAGES = {
+            "Form 1": "nab_figure_drawing_stimulus_form_01.png",
+            "Form 2": "nab_figure_drawing_stimulus_form_02.png"
+        };
+
+        function updateStimulusOverlay(version) {
+            const overlay = document.getElementById("stimulus-overlay");
+            if (!overlay) return;
+            overlay.src = STIMULUS_IMAGES[version] || STIMULUS_IMAGES["Form 2"];
+            updateOverlay();
+        }
+
+        // Pen managers
+        function renderPens() {
+            // Render copy pens
+            const copyDiv = document.getElementById("copy-pens");
+            copyDiv.innerHTML = copyPens.map((color, index) => `
+                <span class="inline-flex items-center gap-1 bg-white border border-slate-200 pl-2 pr-1 py-1 rounded-full shadow-sm text-xs font-bold">
+                    <span class="w-2.5 h-2.5 rounded-full" style="background-color: ${getHexColor(color)}"></span>
+                    <span>Pen ${index+1}: ${color}</span>
+                    <button onclick="removePen('copy', ${index})" class="hover:bg-slate-100 rounded-full w-4 h-4 text-[10px] text-slate-400 hover:text-slate-600 font-bold">×</button>
+                </span>
+            `).join("");
+
+            // Render recall pens
+            const recallDiv = document.getElementById("recall-pens");
+            recallDiv.innerHTML = recallPens.map((color, index) => `
+                <span class="inline-flex items-center gap-1 bg-white border border-slate-200 pl-2 pr-1 py-1 rounded-full shadow-sm text-xs font-bold">
+                    <span class="w-2.5 h-2.5 rounded-full" style="background-color: ${getHexColor(color)}"></span>
+                    <span>Pen ${index+1}: ${color}</span>
+                    <button onclick="removePen('recall', ${index})" class="hover:bg-slate-100 rounded-full w-4 h-4 text-[10px] text-slate-400 hover:text-slate-600 font-bold">×</button>
+                </span>
+            `).join("");
+        }
+
+        function getHexColor(colorName) {
+            const mapping = { 'Red': '#EF4444', 'Blue': '#3B82F6', 'Green': '#10B981', 'Orange': '#F59E0B' };
+            return mapping[colorName] || '#64748B';
+        }
+
+        function addPen(cond, name) {
+            if (cond === 'copy') {
+                copyPens.push(name);
+            } else {
+                recallPens.push(name);
+            }
+            renderPens();
+        }
+
+        function removePen(cond, index) {
+            if (cond === 'copy') {
+                copyPens.splice(index, 1);
+            } else {
+                recallPens.splice(index, 1);
+            }
+            renderPens();
+        }
+
+        // Image loading
+        function setExamineeDrawingVisible(isVisible) {
+            const img = document.getElementById("examinee-drawing");
+            const placeholder = document.getElementById("examinee-placeholder");
+            if (isVisible) {
+                img.classList.remove("hidden");
+                placeholder.classList.add("hidden");
+            } else {
+                img.classList.add("hidden");
+                placeholder.classList.remove("hidden");
+            }
+        }
+
+        function handleImageUpload(e) {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(event) {
+                    const img = document.getElementById("examinee-drawing");
+                    img.src = event.target.result;
+                    setExamineeDrawingVisible(true);
+                }
+                reader.readAsDataURL(file);
+            }
+        }
+
+        function tryLoadDefaultExamineeDrawing() {
+            const img = document.getElementById("examinee-drawing");
+            const candidates = [
+                "nab_figure_form_02.png",
+                "nab_figure_drawing_stimulus_form_02.png"
+            ];
+
+            function tryNext(index) {
+                if (index >= candidates.length) {
+                    setExamineeDrawingVisible(false);
+                    return;
+                }
+                const probe = new Image();
+                probe.onload = function() {
+                    img.src = candidates[index];
+                    setExamineeDrawingVisible(true);
+                };
+                probe.onerror = function() {
+                    tryNext(index + 1);
+                };
+                probe.src = candidates[index];
+            }
+
+            tryNext(0);
+        }
+
+        // Overlay adjuster
+        function updateOverlay() {
+            const op = document.getElementById("overlay-opacity").value;
+            const scale = document.getElementById("overlay-scale").value;
+            const rotate = document.getElementById("overlay-rotate").value;
+            const x = document.getElementById("overlay-x").value;
+
+            document.getElementById("opacity-val").textContent = op + "%";
+            document.getElementById("scale-val").textContent = (scale / 100).toFixed(1) + "x";
+            document.getElementById("rotate-val").textContent = rotate + "°";
+            document.getElementById("x-val").textContent = x + "px";
+
+            const overlay = document.getElementById("stimulus-overlay");
+            overlay.style.opacity = op / 100;
+            overlay.style.transform = `scale(${scale / 100}) rotate(${rotate}deg) translate(${x}px, 0px)`;
+        }
+
+        function resetOverlay() {
+            document.getElementById("overlay-opacity").value = 40;
+            document.getElementById("overlay-scale").value = 100;
+            document.getElementById("overlay-rotate").value = 0;
+            document.getElementById("overlay-x").value = 0;
+            updateOverlay();
+        }
+
+        // Left Panel tab selector
+        function showLeftTab(tabId) {
+            document.querySelectorAll(".left-tab-content").forEach(el => el.classList.add("hidden"));
+            document.getElementById(tabId).classList.remove("hidden");
+
+            document.getElementById("drawing-view-tab-btn").className = "flex-1 py-1.5 px-3 rounded-lg text-xs font-semibold hover:bg-slate-50 transition " + (tabId === 'drawing-view-tab' ? "active-left-tab" : "text-slate-600");
+            document.getElementById("stimulus-ref-tab-btn").className = "flex-1 py-1.5 px-3 rounded-lg text-xs font-semibold hover:bg-slate-50 transition " + (tabId === 'stimulus-ref-tab' ? "active-left-tab" : "text-slate-600");
+            document.getElementById("booklet-view-tab-btn").className = "flex-1 py-1.5 px-3 rounded-lg text-xs font-semibold hover:bg-slate-50 transition " + (tabId === 'booklet-view-tab' ? "active-left-tab" : "text-slate-600");
+        }
+
+        // Right Panel tab selection
+        function showScoringTab(tabId) {
+            document.querySelectorAll(".scoring-tab-content").forEach(el => el.classList.add("hidden"));
+            document.getElementById(tabId).classList.remove("hidden");
+
+            // Buttons styling
+            document.getElementById("elements-tab-btn").className = "flex-1 py-2 px-4 rounded-lg text-sm font-semibold hover:bg-slate-50 transition " + (tabId === 'elements-tab' ? "active-tab" : "text-slate-500");
+            document.getElementById("frag-plan-tab-btn").className = "flex-1 py-2 px-4 rounded-lg text-sm font-semibold hover:bg-slate-50 transition " + (tabId === 'frag-plan-tab' ? "active-tab" : "text-slate-500");
+            document.getElementById("features-tab-btn").className = "flex-1 py-2 px-4 rounded-lg text-sm font-semibold hover:bg-slate-50 transition " + (tabId === 'features-tab' ? "active-tab" : "text-slate-500");
+            document.getElementById("summary-tab-btn").className = "flex-1 py-2 px-4 rounded-lg text-sm font-semibold hover:bg-slate-50 transition " + (tabId === 'summary-tab' ? "active-tab" : "text-slate-500");
+        }
+
+        function togglePage7Ref() {
+            const el = document.getElementById("page7-ref-container");
+            const icon = document.getElementById("ref-toggle-icon");
+            if (el.classList.contains("hidden")) {
+                el.classList.remove("hidden");
+                icon.className = "fa-solid fa-chevron-up text-slate-400 transition";
+            } else {
+                el.classList.add("hidden");
+                icon.className = "fa-solid fa-chevron-down text-slate-400 transition";
+            }
+        }
+
+        // Change booklet reference page
+        function changeBookletPage(val) {
+            document.getElementById("booklet-img").src = val;
+        }
+
+        // Handle planning checks linkages
+        function onPlanCheckChange(cond, itemId) {
+            if (itemId === 'rect-first') {
+                const rectChecked = document.getElementById(`${cond}-plan-rect-first`).checked;
+                if (rectChecked) {
+                    document.getElementById(`${cond}-plan-part-first`).checked = true;
+                }
+            }
+            updateCalculations();
+        }
+
+        // Real-time scores calculator
+        function updateCalculations() {
+            // Elements Total Accuracy
+            let copySum = 0;
+            let recallSum = 0;
+            elementData.forEach(elem => {
+                copySum += copyScores[elem.id] || 0;
+                recallSum += recallScores[elem.id] || 0;
+            });
+
+            document.getElementById("copy-total-badge").textContent = copySum;
+            document.getElementById("recall-total-badge").textContent = recallSum;
+            document.getElementById("copy-total").textContent = copySum + "/33";
+            document.getElementById("recall-total").textContent = recallSum + "/33";
+            document.getElementById("tbl-copy-raw").textContent = copySum;
+            document.getElementById("tbl-recall-raw").textContent = recallSum;
+
+            // Fragmentation Calculation (Elements 1-5, sum of checked)
+            let copyFrag = 0;
+            let recallFrag = 0;
+            for (let i = 1; i <= 5; i++) {
+                if (document.getElementById(`copy-frag-${i}`).checked) copyFrag++;
+                if (document.getElementById(`recall-frag-${i}`).checked) recallFrag++;
+            }
+            document.getElementById("tbl-copy-frag").textContent = copyFrag;
+            document.getElementById("tbl-recall-frag").textContent = recallFrag;
+
+            // Planning Calculations based on Page 9 hierarchies
+            let copyPlanning = calculatePlanningScore('copy');
+            let recallPlanning = calculatePlanningScore('recall');
+
+            document.getElementById("tbl-copy-plan").textContent = copyPlanning;
+            document.getElementById("tbl-recall-plan").textContent = recallPlanning;
+
+            // Organization score (Fragmentation + Planning)
+            let copyOrg = copyFrag + copyPlanning;
+            let recallOrg = recallFrag + recallPlanning;
+
+            document.getElementById("copy-org").textContent = copyOrg + "/10";
+            document.getElementById("copy-org-sub").textContent = `F:${copyFrag} | P:${copyPlanning}`;
+            document.getElementById("tbl-copy-org").textContent = copyOrg;
+            document.getElementById("tbl-recall-org").textContent = recallOrg;
+
+            // Times
+            const cTime = document.getElementById("copy-time").value || 0;
+            const rTime = document.getElementById("recall-time").value || 0;
+            document.getElementById("tbl-copy-time").textContent = cTime + "s";
+            document.getElementById("tbl-recall-time").textContent = rTime + "s";
+
+            // Percent Retention (Recall / Copy) * 100
+            let pct = 0;
+            if (copySum > 0) {
+                pct = Math.round((recallSum / copySum) * 100);
+            }
+            document.getElementById("pct-retention").textContent = pct + "%";
+
+            // Qualitative features active
+            updateQualitativeList();
+
+            // Narrative Draft
+            generateNarrative(copySum, recallSum, copyOrg, recallOrg, pct, cTime, rTime);
+        }
+
+        function calculatePlanningScore(cond) {
+            const rFirst = document.getElementById(`${cond}-plan-rect-first`).checked;
+            const partFirst = document.getElementById(`${cond}-plan-part-first`).checked || rFirst;
+            const bNext = document.getElementById(`${cond}-plan-bisect-next`).checked;
+            const centered = document.getElementById(`${cond}-plan-centered`).checked;
+            const systematic = document.getElementById(`${cond}-plan-systematic`).checked;
+            const quadrants = document.getElementById(`${cond}-plan-quadrants`).checked;
+            const recognizable = document.getElementById(`${cond}-plan-recognizable`).checked;
+            const genRecog = document.getElementById(`${cond}-plan-gen-recog`).checked;
+
+            // Page 9 Score Hierarchies
+            if (rFirst && bNext && centered && systematic && quadrants && recognizable) {
+                return 5;
+            } else if (rFirst && !bNext && systematic && quadrants && recognizable) {
+                return 4;
+            } else if (partFirst && systematic && recognizable) {
+                return 3;
+            } else if (systematic && genRecog) {
+                return 2;
+            } else if (systematic || genRecog) {
+                return 1;
+            }
+            return 0;
+        }
+
+        function updateQualitativeList() {
+            const listDiv = document.getElementById("qualitative-active-list");
+            listDiv.innerHTML = "";
+
+            const features = [
+                { id: "perseverative", name: "Perseverative" },
+                { id: "confabulative", name: "Confabulative" },
+                { id: "expanded-v", name: "Expanded Vertically" },
+                { id: "expanded-h", name: "Expanded Horizontally" },
+                { id: "micrographic", name: "Micrographic / Small Size" },
+                { id: "asym-left", name: "Left Asymmetry" },
+                { id: "asym-right", name: "Right Asymmetry" },
+                { id: "neglect-left", name: "Left-Hemispace Neglect" },
+                { id: "neglect-right", name: "Right-Hemispace Neglect" }
+            ];
+
+            let activeCount = 0;
+            features.forEach(feat => {
+                const isCopy = document.getElementById(`copy-feat-${feat.id}`).checked;
+                const isRecall = document.getElementById(`recall-feat-${feat.id}`).checked;
+
+                if (isCopy || isRecall) {
+                    activeCount++;
+                    const span = document.createElement("span");
+                    let badgeClass = "bg-slate-100 text-slate-800 border border-slate-200";
+                    if (isCopy && isRecall) badgeClass = "bg-indigo-100 text-indigo-800 border border-indigo-200";
+                    else if (isCopy) badgeClass = "bg-indigo-50 text-indigo-700 border border-indigo-150";
+                    else if (isRecall) badgeClass = "bg-emerald-50 text-emerald-700 border border-emerald-150";
+
+                    span.className = `px-2 py-0.5 rounded-full font-semibold text-[10px] ${badgeClass}`;
+                    span.textContent = `${feat.name} (${isCopy ? 'C' : ''}${isCopy && isRecall ? '+' : ''}${isRecall ? 'R' : ''})`;
+                    listDiv.appendChild(span);
+                }
+            });
+
+            if (activeCount === 0) {
+                listDiv.innerHTML = `<span class="text-slate-400 italic">No special qualitative features checked.</span>`;
+            }
+        }
+
+        function generateNarrative(copy, recall, copyOrg, recallOrg, pct, cTime, rTime) {
+            const name = document.getElementById("dem-name").value || "The examinee";
+            
+            // Interpretations of scores
+            let copyClass = copy >= 28 ? "Superior" : copy >= 22 ? "Average" : copy >= 15 ? "Mildly Impaired" : "Severely Impaired";
+            let recallClass = recall >= 24 ? "Superior" : recall >= 16 ? "Average" : recall >= 10 ? "Mildly Impaired" : "Severely Impaired";
+
+            let copyOrgDesc = copyOrg >= 8 ? "highly organized" : copyOrg >= 5 ? "moderately systematic" : "poorly planned / disorganized";
+            let recallOrgDesc = recallOrg >= 8 ? "highly organized" : recallOrg >= 5 ? "moderately systematic" : "poorly planned / disorganized";
+
+            const activeForm = document.getElementById("form-version").value;
+
+            let text = `${name} was administered the NAB Spatial Module, Figure Drawing test (${activeForm}) to assess visuo-constructive ability and spatial memory. \n\n`;
+            
+            text += `During the Copy condition, ${name} completed the design in ${cTime} seconds, achieving a Copy Raw Score of ${copy}/33 (${copyClass} range). `;
+            text += `Construction organization was rated as ${copyOrg}/10 (${copyOrgDesc}), demonstrating a systematic planning approach. \n\n`;
+
+            text += `On the Immediate Recall condition, which assesses nonverbal visual memory, ${name} recreated the figure from memory in ${rTime} seconds. `;
+            text += `They earned a Recall Raw Score of ${recall}/33 (${recallClass} range), representing a Percent Retention of ${pct}%. `;
+            text += `Recall organization was scored at ${recallOrg}/10 (${recallOrgDesc}).\n\n`;
+
+            // Adding qualitative elements
+            let activeFeats = [];
+            if (document.getElementById("copy-feat-perseverative").checked || document.getElementById("recall-feat-perseverative").checked) activeFeats.push("perseverative tendencies");
+            if (document.getElementById("copy-feat-confabulative").checked || document.getElementById("recall-feat-confabulative").checked) activeFeats.push("confabulative additions");
+            if (document.getElementById("copy-feat-micrographic").checked || document.getElementById("recall-feat-micrographic").checked) activeFeats.push("micrographic drawing (reduced size)");
+            if (document.getElementById("copy-feat-asym-left").checked || document.getElementById("recall-feat-asym-left").checked) activeFeats.push("left-sided asymmetry");
+            if (document.getElementById("copy-feat-asym-right").checked || document.getElementById("recall-feat-asym-right").checked) activeFeats.push("right-sided asymmetry");
+            if (document.getElementById("copy-feat-neglect-left").checked || document.getElementById("recall-feat-neglect-left").checked) activeFeats.push("unilateral left hemispatial neglect, representing a classic right-hemisphere clinical sign");
+            if (document.getElementById("copy-feat-neglect-right").checked || document.getElementById("recall-feat-neglect-right").checked) activeFeats.push("unilateral right hemispatial neglect");
+
+            if (activeFeats.length > 0) {
+                text += `Qualitative observations are notable for the presence of ${activeFeats.join(", ")}. `;
+            } else {
+                text += `No significant qualitative distortions or errors (such as perseverations, confabulations, size reductions, asymmetry, or visual field neglect) were observed in either drawing condition.`;
+            }
+
+            document.getElementById("clinical-narrative").value = text;
+        }
+
+        function resetScoring() {
+            if (confirm("Are you sure you want to reset all scores?")) {
+                elementData.forEach(elem => {
+                    setScore('copy', elem.id, 0);
+                    setScore('recall', elem.id, 0);
+                });
+                document.querySelectorAll("input[type='checkbox']").forEach(ch => ch.checked = false);
+                document.getElementById("copy-time").value = 120;
+                document.getElementById("recall-time").value = 90;
+                resetOverlay();
+                updateCalculations();
+                showScoringTab('elements-tab');
+            }
+        }
+
+        // Initialize state (Form 2 — uses nab_figure_drawing_stimulus_form_02.png overlay)
+        tryLoadDefaultExamineeDrawing();
+        changeFormVersion('Form 2');
+        updateOverlay();
+    </script>
+</body>
+</html>

@@ -382,10 +382,7 @@
 
                 <!-- Clinical Narrative -->
                 <div class="no-print">
-                    <h4 class="font-bold text-sm text-slate-800 mb-2">Auto-Generated Clinical Narrative Draft</h4>
-                    <p class="text-xs text-slate-500 mb-3">Editable draft based on the entered scores. Edit directly, then print.</p>
-                    <textarea id="clinical-narrative" rows="8" class="w-full border rounded-xl p-3 text-xs md:text-sm font-normal focus:border-indigo-500 focus:outline-none bg-slate-50 leading-relaxed text-slate-700"></textarea>
-                </div>
+                    <textarea id="clinical-narrative" rows="8" oninput="saveSession()" class="w-full border rounded-xl p-3 text-xs md:text-sm font-normal focus:border-indigo-500 focus:outline-none bg-slate-50 leading-relaxed text-slate-700"></textarea>
             </div>
 
         </section>

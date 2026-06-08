@@ -1220,6 +1220,7 @@ ${ITEMS_JSON}
         async function getStimulusDataUrl() {
             if (_stimulusDataUrlCache) return _stimulusDataUrlCache;
             const resp = await fetch("rocft_stimulus.png");
+            if (!resp.ok) throw new Error(`Couldn't load rocft_stimulus.png (HTTP ${resp.status}).`);
             const blob = await resp.blob();
             _stimulusDataUrlCache = await new Promise((res, rej) => {
                 const r = new FileReader();

@@ -908,7 +908,7 @@
             renderPencils();
             updateCalculations();
             if (s.narrative) document.getElementById("clinical-narrative").value = s.narrative; // restore manual edits last
-        }
+            saveSession();
 
         function saveSession() {
             try { sessionStorage.setItem(SESSION_KEY, JSON.stringify(gatherState())); } catch (e) { /* quota / private mode */ }

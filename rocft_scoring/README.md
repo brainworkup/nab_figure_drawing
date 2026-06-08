@@ -1,8 +1,8 @@
 # Rey-Osterrieth Complex Figure (ROCFT) Interactive Scoring Dashboard
 
-A self-contained, offline HTML tool for **manual clinician scoring** of the ROCFT,
+A self-contained HTML tool for **manual clinician scoring** of the ROCFT,
 modeled on the NAB Figure Drawing dashboard (`../form_02/nab_scoring_dashboard.html`).
-No build step, no server, no dependencies beyond two CDN links (Tailwind + Font Awesome).
+No build step, no server. Styling/icons load via Tailwind + Font Awesome CDNs; optional Word export uses the html-docx-js CDN (the rest of the tool works without it).
 
 ## Open it
 
@@ -42,8 +42,8 @@ This is a manual scoring aid; it does **not** auto-score from an image.
 
 | File | Source | How generated |
 |---|---|---|
-| `rocft_stimulus.png` | `rocft/ReyCFT_Stimulus.pdf` | `pdftoppm -png -r 200` then `magick -trim +repage` |
-| `rocft_18unit_schematic.jpg` | `rocft/elife-96017-fig1-v1_figure.jpg` | copied (Langer et al., *eLife* 2024; CC-BY) |
+| `rocft_stimulus.png` | Rey figure stimulus PDF (source not committed) | `pdftoppm -png -r 200` then `magick -trim +repage` |
+| `rocft_18unit_schematic.jpg` | Langer et al. (*eLife* 2024) figure (CC-BY; source not committed) | copied |
 
 Unit labels follow the Osterrieth (1944) / Meyers & Meyers (1995) 18-item system,
-matching the official score sheet (`rocft/7_rocft.pdf`).
+matching the official score sheet (source not committed).

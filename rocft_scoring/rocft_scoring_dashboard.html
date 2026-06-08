@@ -1203,7 +1203,17 @@ ${ITEMS_JSON}
             if (!el) return;
             const color = { loading: "text-slate-500", ok: "text-emerald-700", error: "text-red-600" }[kind] || "text-slate-500";
             el.className = `text-xs mt-1 ${color}`;
-            el.innerHTML = (kind === "loading" ? '<i class="fa-solid fa-spinner fa-spin"></i> ' : "") + msg;
+
+            // Avoid innerHTML here because msg may include server-provided text.
+            el.innerHTML = "";
+            if (kind === "loading") {
+                const i = document.createElement("i");
+                i.className = "fa-solid fa-spinner fa-spin";
+                el.appendChild(i);
+                el.appendChild(document.createTextNode(" " + (msg || "")));
+            } else {
+                el.textContent = msg || "";
+            }
         }
 
         let _stimulusDataUrlCache = null;

@@ -1,0 +1,1172 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rey-Osterrieth Complex Figure (ROCFT) Interactive Scoring Dashboard</title>
+    <!-- Tailwind CSS (Play CDN — JIT scans the DOM, so dynamically-injected classes work) -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <!-- html-docx-js (optional — one-click Word export; degrades gracefully if offline) -->
+    <script defer src="https://unpkg.com/html-docx-js/dist/html-docx.js"></script>
+    <style>
+        .active-tab {
+            border-bottom: 2px solid #4f46e5;
+            color: #4f46e5;
+            font-weight: 600;
+        }
+        .active-left-tab {
+            background-color: #4f46e5;
+            color: white;
+            font-weight: 600;
+        }
+        @media print {
+            .no-print { display: none !important; }
+            .print-full {
+                width: 100% !important;
+                max-width: 100% !important;
+                box-shadow: none !important;
+                margin: 0 !important;
+                padding: 0 !important;
+            }
+        }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800 min-h-screen flex flex-col">
+
+    <!-- Header -->
+    <header class="bg-indigo-900 text-white shadow-md py-4 px-6 no-print">
+        <div class="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-4">
+            <div class="flex items-center gap-3">
+                <div class="bg-white/10 p-2 rounded-lg">
+                    <i class="fa-solid fa-draw-polygon text-indigo-300 text-2xl"></i>
+                </div>
+                <div>
+                    <h1 class="text-xl font-bold tracking-tight">Rey-Osterrieth Complex Figure Scoring Assistant</h1>
+                    <p class="text-xs text-indigo-200">18-Unit Osterrieth Scoring • Copy / Immediate / Delayed Recall</p>
+                </div>
+            </div>
+            <div class="flex items-center gap-2">
+                <button onclick="window.print()" class="bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium py-2 px-3 rounded-lg shadow-sm transition flex items-center gap-2">
+                    <i class="fa-solid fa-print"></i> Print
+                </button>
+                <button onclick="exportJSON()" class="bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-medium py-2 px-3 rounded-lg shadow-sm transition flex items-center gap-2">
+                    <i class="fa-solid fa-file-export"></i> Export
+                </button>
+                <label for="json-import" class="cursor-pointer bg-white/10 hover:bg-white/20 text-white text-sm font-medium py-2 px-3 rounded-lg shadow-sm transition flex items-center gap-2">
+                    <i class="fa-solid fa-file-import"></i> Import
+                </label>
+                <input type="file" id="json-import" accept="application/json,.json" class="hidden" onchange="importJSON(event)">
+                <button onclick="resetScoring()" class="bg-slate-700 hover:bg-slate-600 text-slate-200 text-sm font-medium py-2 px-3 rounded-lg shadow-sm transition flex items-center gap-2">
+                    <i class="fa-solid fa-rotate"></i> Reset
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Container -->
+    <main class="flex-1 max-w-8xl w-full mx-auto p-4 md:p-6 grid grid-cols-1 lg:grid-cols-12 gap-6">
+
+        <!-- Left Panel: Viewer & Reference (5 cols) -->
+        <section class="lg:col-span-5 flex flex-col gap-6 no-print">
+
+            <!-- Workspace Navigation -->
+            <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-2 flex gap-1">
+                <button onclick="showLeftTab('drawing-view-tab')" id="drawing-view-tab-btn" class="flex-1 py-1.5 px-3 rounded-lg text-xs font-semibold hover:bg-slate-50 transition active-left-tab">
+                    Examinee Drawing
+                </button>
+                <button onclick="showLeftTab('stimulus-ref-tab')" id="stimulus-ref-tab-btn" class="flex-1 py-1.5 px-3 rounded-lg text-xs font-semibold hover:bg-slate-50 transition text-slate-600">
+                    Stimulus Reference
+                </button>
+                <button onclick="showLeftTab('schematic-tab')" id="schematic-tab-btn" class="flex-1 py-1.5 px-3 rounded-lg text-xs font-semibold hover:bg-slate-50 transition text-slate-600">
+                    18-Unit Map
+                </button>
+            </div>
+
+            <!-- Tab A: Examinee Drawing Viewer -->
+            <div id="drawing-view-tab" class="left-tab-content bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                <div class="border-b border-slate-100 bg-slate-50 px-4 py-3 flex justify-between items-center">
+                    <h2 class="font-semibold text-slate-700 flex items-center gap-2">
+                        <i class="fa-solid fa-image text-slate-500"></i> Examinee Drawing Viewer
+                    </h2>
+                    <div class="flex items-center gap-2">
+                        <label for="image-upload" class="cursor-pointer bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 text-xs font-semibold py-1.5 px-3 rounded-lg shadow-sm transition flex items-center gap-1.5">
+                            <i class="fa-solid fa-cloud-arrow-up text-slate-500"></i> Upload Drawing
+                        </label>
+                        <input type="file" id="image-upload" accept="image/*" class="hidden" onchange="handleImageUpload(event)">
+                    </div>
+                </div>
+
+                <div class="p-4 flex flex-col gap-4">
+                    <!-- Overlay Controls -->
+                    <div class="bg-slate-50 rounded-lg p-3 border border-slate-100 grid grid-cols-2 gap-3 text-xs">
+                        <div class="col-span-2 font-semibold text-slate-600 flex justify-between items-center">
+                            <span>Stimulus Overlay Controls</span>
+                            <button onclick="resetOverlay()" class="text-indigo-600 hover:text-indigo-800 font-bold">Reset Alignment</button>
+                        </div>
+                        <div>
+                            <label class="block text-slate-500 mb-1">Overlay Opacity: <span id="opacity-val">40%</span></label>
+                            <input type="range" id="overlay-opacity" min="0" max="100" value="40" oninput="updateOverlay()" class="w-full accent-indigo-600">
+                        </div>
+                        <div>
+                            <label class="block text-slate-500 mb-1">Scale: <span id="scale-val">1.0x</span></label>
+                            <input type="range" id="overlay-scale" min="50" max="200" value="100" oninput="updateOverlay()" class="w-full accent-indigo-600">
+                        </div>
+                        <div>
+                            <label class="block text-slate-500 mb-1">Rotation: <span id="rotate-val">0°</span></label>
+                            <input type="range" id="overlay-rotate" min="-180" max="180" value="0" oninput="updateOverlay()" class="w-full accent-indigo-600">
+                        </div>
+                        <div>
+                            <label class="block text-slate-500 mb-1">Horizontal Offset: <span id="x-val">0px</span></label>
+                            <input type="range" id="overlay-x" min="-200" max="200" value="0" oninput="updateOverlay()" class="w-full accent-indigo-600">
+                        </div>
+                    </div>
+
+                    <!-- Main Canvas Workspace -->
+                    <div class="relative border-2 border-dashed border-slate-200 rounded-lg overflow-hidden bg-slate-100 flex items-center justify-center min-h-[350px] aspect-[4/3]">
+                        <div id="examinee-placeholder" class="absolute inset-0 flex flex-col items-center justify-center gap-2 text-slate-400 pointer-events-none z-0">
+                            <i class="fa-solid fa-pen-ruler text-3xl text-slate-300"></i>
+                            <p class="text-sm font-medium">No examinee drawing loaded</p>
+                            <p class="text-xs">Use <strong>Upload Drawing</strong> to add the patient's copy or recall figure</p>
+                        </div>
+
+                        <img id="examinee-drawing" src="" alt="Examinee Drawing" class="hidden max-w-full max-h-full object-contain select-none transition-all duration-300 relative z-[1]">
+
+                        <div id="element-highlight-badge" class="hidden absolute top-2 left-2 z-10 bg-indigo-600 text-white text-xs font-bold px-2 py-1 rounded shadow-lg pointer-events-none"></div>
+
+                        <!-- Canonical Rey figure overlay -->
+                        <div id="stimulus-overlay-container" class="absolute inset-0 pointer-events-none flex items-center justify-center transition-all duration-100 z-[2]">
+                            <img id="stimulus-overlay"
+                                 src="rocft_stimulus.png"
+                                 alt="Rey Figure Stimulus Overlay"
+                                 class="max-w-full max-h-full object-contain select-none origin-center opacity-40 transition-opacity duration-200">
+                        </div>
+                    </div>
+                    <p class="text-[10px] text-slate-400 text-center leading-relaxed">Upload the examinee's drawing, then dial in opacity / scale / rotation / offset to overlay the canonical figure for placement scoring.</p>
+                </div>
+            </div>
+
+            <!-- Tab B: Stimulus Reference -->
+            <div id="stimulus-ref-tab" class="left-tab-content bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden hidden">
+                <div class="border-b border-slate-100 bg-slate-50 px-4 py-3">
+                    <h2 class="font-semibold text-slate-700 flex items-center gap-2">
+                        <i class="fa-solid fa-shapes text-slate-500"></i> Rey-Osterrieth Stimulus (Target Model)
+                    </h2>
+                </div>
+                <div class="p-4 flex flex-col gap-2">
+                    <img src="rocft_stimulus.png" alt="Rey-Osterrieth Complex Figure" class="w-full rounded-lg border border-slate-200 object-contain shadow-inner bg-white">
+                    <p class="text-[10px] text-slate-400 text-center leading-relaxed">Canonical Rey-Osterrieth Complex Figure. The examinee copies this figure, then reproduces it from memory after short (immediate) and long (~30 min, delayed) delays.</p>
+                </div>
+            </div>
+
+            <!-- Tab C: 18-Unit Map -->
+            <div id="schematic-tab" class="left-tab-content bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden hidden">
+                <div class="border-b border-slate-100 bg-slate-50 px-4 py-3">
+                    <h2 class="font-semibold text-slate-700 flex items-center gap-2">
+                        <i class="fa-solid fa-list-ol text-slate-500"></i> 18 Scoring Units — Reference Map
+                    </h2>
+                </div>
+                <div class="p-4 flex flex-col gap-3">
+                    <img src="rocft_18unit_schematic.jpg" alt="18-unit labeled schematic" class="w-full rounded-lg border border-slate-200 object-contain bg-white cursor-zoom-in" onclick="window.open(this.src)">
+                    <p class="text-[10px] text-slate-400 text-center leading-relaxed">Numbered unit schematic (Langer et&nbsp;al., <em>eLife</em> 2024; CC&#8209;BY). Each of the 18 units below is scored 0 / 0.5 / 1 / 2.</p>
+                    <ol id="unit-legend" class="text-[11px] text-slate-600 grid grid-cols-1 gap-0.5 border-t border-slate-100 pt-2"></ol>
+                </div>
+            </div>
+
+        </section>
+
+        <!-- Right Panel: Scoring Suite (7 cols) -->
+        <section class="lg:col-span-7 flex flex-col gap-6 print-full">
+
+            <!-- Demographics & Admin -->
+            <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-4 md:p-6">
+                <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-3 border-b pb-3 mb-4">
+                    <h2 class="font-bold text-lg text-slate-800 flex items-center gap-2">
+                        <i class="fa-solid fa-user-check text-indigo-600"></i> Examinee &amp; Administration Details
+                    </h2>
+                    <span class="text-[10px] font-semibold text-slate-400">Age drives age-banded norms (Meyers &amp; Meyers, 1995)</span>
+                </div>
+                <div class="grid grid-cols-2 md:grid-cols-5 gap-3 text-sm">
+                    <div class="col-span-2 md:col-span-2">
+                        <label class="block text-xs font-semibold text-slate-500 mb-1">Examinee Name</label>
+                        <input type="text" id="dem-name" placeholder="Name / initials" oninput="updateCalculations()" class="w-full border rounded-lg px-3 py-1.5 focus:border-indigo-500 focus:outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-500 mb-1">ID Number</label>
+                        <input type="text" id="dem-id" placeholder="ROCFT-0001" oninput="updateCalculations()" class="w-full border rounded-lg px-3 py-1.5 focus:border-indigo-500 focus:outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-500 mb-1">Date</label>
+                        <input type="date" id="dem-date" class="w-full border rounded-lg px-3 py-1.5 focus:border-indigo-500 focus:outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-500 mb-1">Age (yrs)</label>
+                        <input type="number" id="dem-age" min="0" max="120" placeholder="e.g. 54" oninput="updateCalculations()" class="w-full border rounded-lg px-3 py-1.5 focus:border-indigo-500 focus:outline-none">
+                    </div>
+                </div>
+
+                <!-- Trial completion times -->
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-3 mt-5 pt-5 border-t border-slate-100" id="trial-admin-cards">
+                    <!-- Injected by JS -->
+                </div>
+            </div>
+
+            <!-- Scoring Navigation Tabs -->
+            <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-2 flex gap-1 no-print">
+                <button onclick="showScoringTab('units-tab')" id="units-tab-btn" class="flex-1 py-2 px-4 rounded-lg text-sm font-semibold hover:bg-slate-50 transition active-tab">
+                    1. Unit Accuracy (0&ndash;36)
+                </button>
+                <button onclick="showScoringTab('qual-tab')" id="qual-tab-btn" class="flex-1 py-2 px-4 rounded-lg text-sm font-semibold hover:bg-slate-50 transition text-slate-500">
+                    2. Qualitative &amp; Organization
+                </button>
+                <button onclick="showScoringTab('summary-tab')" id="summary-tab-btn" class="flex-1 py-2 px-4 rounded-lg text-sm font-semibold hover:bg-slate-50 transition text-slate-500">
+                    3. Summary &amp; Report
+                </button>
+            </div>
+
+            <!-- TAB 1: Unit accuracy table -->
+            <div id="units-tab" class="scoring-tab-content bg-white rounded-xl shadow-sm border border-slate-200 p-4 md:p-6">
+                <div class="flex flex-wrap justify-between items-center gap-2 border-b pb-3 mb-4">
+                    <h3 class="font-bold text-base text-slate-800">Unit Accuracy &amp; Placement (18 units)</h3>
+                    <div class="flex items-center gap-3 text-xs font-semibold bg-slate-100 p-2 rounded-lg border border-slate-200">
+                        <span class="flex items-center gap-1 text-indigo-800"><span class="w-2.5 h-2.5 bg-indigo-600 rounded"></span> Copy: <strong id="total-copy-badge" class="text-sm">0</strong>/36</span>
+                        <span class="flex items-center gap-1 text-emerald-800"><span class="w-2.5 h-2.5 bg-emerald-600 rounded"></span> Imm: <strong id="total-immediate-badge" class="text-sm">0</strong>/36</span>
+                        <span class="flex items-center gap-1 text-amber-800"><span class="w-2.5 h-2.5 bg-amber-500 rounded"></span> Del: <strong id="total-delayed-badge" class="text-sm">0</strong>/36</span>
+                    </div>
+                </div>
+
+                <!-- Scoring Rubric Helper -->
+                <div class="bg-blue-50/50 rounded-xl p-3 border border-blue-100 text-xs mb-4 text-blue-900 leading-relaxed">
+                    <strong class="font-bold flex items-center gap-1 text-blue-950 mb-1"><i class="fa-solid fa-circle-info"></i> Osterrieth Scoring Rubric (per unit, max 2):</strong>
+                    <div class="grid grid-cols-2 md:grid-cols-4 gap-2 mt-1">
+                        <div><strong>2:</strong> Correct &amp; placed properly</div>
+                        <div><strong>1:</strong> Correct but misplaced, <em>or</em> distorted/incomplete (recognizable) but placed properly</div>
+                        <div><strong>0.5:</strong> Distorted/incomplete (recognizable) &amp; placed poorly</div>
+                        <div><strong>0:</strong> Absent or not recognizable</div>
+                    </div>
+                </div>
+
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left border-collapse text-xs md:text-sm">
+                        <thead>
+                            <tr class="border-b border-slate-100 text-slate-500">
+                                <th class="py-2.5">Unit</th>
+                                <th class="py-2.5 text-center px-1">Copy</th>
+                                <th class="py-2.5 text-center px-1">Immediate</th>
+                                <th class="py-2.5 text-center px-1">Delayed</th>
+                            </tr>
+                        </thead>
+                        <tbody id="units-table-body">
+                            <!-- Dynamic Rows -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- TAB 2: Qualitative & Organization -->
+            <div id="qual-tab" class="scoring-tab-content bg-white rounded-xl shadow-sm border border-slate-200 p-4 md:p-6 hidden">
+                <h3 class="font-bold text-base text-slate-800 border-b pb-2 mb-4">Qualitative Features &amp; Organizational Approach</h3>
+
+                <!-- Organizational approach selects -->
+                <div class="mb-6">
+                    <h4 class="font-bold text-sm text-slate-700 mb-2">Organizational Approach (per trial)</h4>
+                    <p class="text-xs text-slate-500 mb-3">Descriptive rating of construction strategy (configural &rarr; fragmented). Informs the narrative; not part of the 36-point accuracy score.</p>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-3" id="org-approach-row">
+                        <!-- Injected by JS -->
+                    </div>
+                </div>
+
+                <!-- Colored-pencil construction order (per trial) -->
+                <div class="mb-6 border border-slate-150 rounded-xl p-4 bg-slate-50/30">
+                    <h4 class="font-bold text-sm text-slate-700 flex items-center justify-between mb-2 border-b pb-1">
+                        <span>Construction Order (per trial)</span>
+                        <span class="text-[10px] bg-indigo-100 text-indigo-800 px-2 py-0.5 rounded-full font-semibold">Boston / colored-pencil method</span>
+                    </h4>
+                    <p class="text-xs text-slate-500 mb-3">If the examiner swapped colored pencils at intervals, log the sequence <strong>per trial</strong> to document the order of construction.</p>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-3" id="construction-order-row">
+                        <!-- Injected by JS -->
+                    </div>
+                </div>
+
+                <!-- Qualitative feature matrix -->
+                <h4 class="font-bold text-sm text-slate-700 mb-2">Qualitative Error / Distortion Checklist</h4>
+                <p class="text-xs text-slate-500 mb-3">Check any feature observed in each trial's production.</p>
+                <div class="overflow-x-auto border border-slate-200 rounded-xl">
+                    <table class="w-full text-left text-xs border-collapse">
+                        <thead class="bg-slate-50 border-b border-slate-200 text-slate-600">
+                            <tr>
+                                <th class="p-2.5 font-semibold">Feature</th>
+                                <th class="p-2.5 font-semibold text-center w-16">Copy</th>
+                                <th class="p-2.5 font-semibold text-center w-20">Immediate</th>
+                                <th class="p-2.5 font-semibold text-center w-16">Delayed</th>
+                            </tr>
+                        </thead>
+                        <tbody id="qual-matrix-body" class="divide-y divide-slate-100">
+                            <!-- Injected by JS -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- TAB 3: Summary & Report -->
+            <div id="summary-tab" class="scoring-tab-content bg-white rounded-xl shadow-sm border border-slate-200 p-4 md:p-6 hidden print-full">
+                <h3 class="font-bold text-base text-slate-800 border-b pb-2 mb-4">Score Summary &amp; Clinical Report</h3>
+
+                <!-- Stat cards -->
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+                    <div class="bg-indigo-50 border border-indigo-100 rounded-xl p-3 text-center">
+                        <div class="text-[10px] font-bold text-indigo-800 tracking-wider uppercase mb-0.5">Copy</div>
+                        <div class="text-2xl font-black text-indigo-900" id="sum-copy">0/36</div>
+                    </div>
+                    <div class="bg-emerald-50 border border-emerald-100 rounded-xl p-3 text-center">
+                        <div class="text-[10px] font-bold text-emerald-800 tracking-wider uppercase mb-0.5">Immediate Recall</div>
+                        <div class="text-2xl font-black text-emerald-900" id="sum-immediate">0/36</div>
+                    </div>
+                    <div class="bg-amber-50 border border-amber-100 rounded-xl p-3 text-center">
+                        <div class="text-[10px] font-bold text-amber-800 tracking-wider uppercase mb-0.5">Delayed Recall</div>
+                        <div class="text-2xl font-black text-amber-900" id="sum-delayed">0/36</div>
+                    </div>
+                    <div class="bg-sky-50 border border-sky-100 rounded-xl p-3 text-center">
+                        <div class="text-[10px] font-bold text-sky-800 tracking-wider uppercase mb-0.5">% Retention</div>
+                        <div class="text-2xl font-black text-sky-900" id="sum-retention">0%</div>
+                        <div class="text-[10px] text-sky-600" id="sum-retention-sub">Delayed / Copy</div>
+                    </div>
+                </div>
+
+                <!-- Normative table -->
+                <div class="border border-slate-200 rounded-xl overflow-hidden mb-6">
+                    <table class="w-full text-left text-xs md:text-sm border-collapse">
+                        <thead class="bg-slate-50 border-b border-slate-200 text-slate-600">
+                            <tr>
+                                <th class="p-3 font-semibold">Trial</th>
+                                <th class="p-3 font-semibold text-center">Raw /36</th>
+                                <th class="p-3 font-semibold text-center">Norm M (SD)</th>
+                                <th class="p-3 font-semibold text-center">z</th>
+                                <th class="p-3 font-semibold text-center">%ile</th>
+                                <th class="p-3 font-semibold text-center">Classification</th>
+                                <th class="p-3 font-semibold text-center">Time</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-100" id="norms-table-body">
+                            <!-- Injected by JS -->
+                        </tbody>
+                    </table>
+                    <div class="bg-slate-50 px-3 py-2 text-[10px] text-slate-400 border-t border-slate-100" id="norms-note">
+                        Norms: Meyers &amp; Meyers (1995), ages 22&ndash;79. Enter examinee age for z / percentile / classification.
+                    </div>
+                </div>
+
+                <!-- Qualitative Feature Summary -->
+                <div class="bg-slate-50 border border-slate-200 rounded-xl p-4 mb-6 text-xs leading-relaxed">
+                    <strong class="font-bold text-slate-800 mb-1 block">Active Qualitative Features:</strong>
+                    <div id="qualitative-active-list" class="flex flex-wrap gap-1.5 mt-2">
+                        <span class="text-slate-400 italic">No qualitative features checked.</span>
+                    </div>
+                </div>
+
+                <!-- Report Export -->
+                <div class="no-print border border-slate-200 rounded-xl p-4 mb-6 bg-slate-50/40">
+                    <div class="flex items-center justify-between mb-1">
+                        <h4 class="font-bold text-sm text-slate-800 flex items-center gap-2"><i class="fa-solid fa-file-export text-indigo-600"></i> Export Report</h4>
+                        <span id="report-status" class="text-[11px] text-emerald-600 font-semibold" style="opacity:0;transition:opacity .2s;">Copied!</span>
+                    </div>
+                    <p class="text-xs text-slate-500 mb-3">Full report = scores + norms + qualitative + narrative. Markdown &amp; Quarto are fully offline; Word uses a CDN; PDF uses your browser's print-to-PDF.</p>
+                    <div class="flex flex-wrap gap-2">
+                        <button onclick="copyReport()" class="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold py-2 px-3 rounded-lg shadow-sm transition flex items-center gap-1.5"><i class="fa-solid fa-copy"></i> Copy</button>
+                        <button onclick="downloadReport('md')" class="bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 text-xs font-semibold py-2 px-3 rounded-lg shadow-sm transition flex items-center gap-1.5"><i class="fa-solid fa-file-lines text-slate-500"></i> Markdown</button>
+                        <button onclick="downloadReport('qmd')" class="bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 text-xs font-semibold py-2 px-3 rounded-lg shadow-sm transition flex items-center gap-1.5"><i class="fa-solid fa-file-code text-slate-500"></i> Quarto .qmd</button>
+                        <button onclick="downloadDocx()" class="bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 text-xs font-semibold py-2 px-3 rounded-lg shadow-sm transition flex items-center gap-1.5"><i class="fa-solid fa-file-word text-blue-600"></i> Word</button>
+                        <button onclick="printReportPDF()" class="bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 text-xs font-semibold py-2 px-3 rounded-lg shadow-sm transition flex items-center gap-1.5"><i class="fa-solid fa-file-pdf text-red-600"></i> PDF</button>
+                    </div>
+                </div>
+
+                <!-- Clinical Narrative -->
+                <div class="no-print">
+                    <textarea id="clinical-narrative" rows="8" oninput="saveSession()" class="w-full border rounded-xl p-3 text-xs md:text-sm font-normal focus:border-indigo-500 focus:outline-none bg-slate-50 leading-relaxed text-slate-700"></textarea>
+            </div>
+
+        </section>
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-slate-100 border-t py-4 text-center text-xs text-slate-500 no-print">
+        Rey-Osterrieth Complex Figure (ROCFT) Scoring Dashboard &bull; Manual clinician scoring &bull; Created for joey
+    </footer>
+
+    <!-- JS Logic -->
+    <script>
+        // ──────────────────────────────────────────────────────────────────────
+        //  Data model
+        // ──────────────────────────────────────────────────────────────────────
+        const UNITS = [
+            { id: 1,  name: "Cross — upper-left, outside rectangle",            region: "Exterior" },
+            { id: 2,  name: "Large rectangle",                                  region: "Structure" },
+            { id: 3,  name: "Diagonal cross (X through rectangle)",             region: "Structure" },
+            { id: 4,  name: "Horizontal midline of rectangle",                  region: "Structure" },
+            { id: 5,  name: "Vertical midline of rectangle",                    region: "Structure" },
+            { id: 6,  name: "Small rectangle — left side, inside",              region: "Interior detail" },
+            { id: 7,  name: "Small segment above item 6",                       region: "Interior detail" },
+            { id: 8,  name: "Four parallel lines — upper-left quadrant",        region: "Interior detail" },
+            { id: 9,  name: "Triangle — above rectangle, upper-right",          region: "Top attachment" },
+            { id: 10, name: "Small vertical line below item 9",                 region: "Interior detail" },
+            { id: 11, name: "Circle with three dots",                           region: "Interior detail" },
+            { id: 12, name: "Five parallel lines — lower-right, crossing X",    region: "Interior detail" },
+            { id: 13, name: "Triangle — attached to right side",                region: "Right attachment" },
+            { id: 14, name: "Diamond — attached to item 13",                    region: "Right attachment" },
+            { id: 15, name: "Vertical line within item 13",                     region: "Right attachment" },
+            { id: 16, name: "Horizontal line within item 13 (continues item 4)",region: "Right attachment" },
+            { id: 17, name: "Cross — attached to lower center",                 region: "Bottom attachment" },
+            { id: 18, name: "Square — attached to lower-left",                  region: "Bottom attachment" },
+        ];
+
+        const SCORE_VALUES = [0, 0.5, 1, 2];
+
+        // Condition definitions. Each uses FULL Tailwind class literals so the
+        // Play CDN's JIT scanner picks them up when injected into the DOM.
+        const CONDITIONS = [
+            { key: "copy",      label: "Copy",             short: "C",  normKey: "Copy",
+              selBtn: "bg-indigo-600 text-white",  solid: "bg-indigo-600",  cardBg: "bg-indigo-50/50",  cardBorder: "border-indigo-100",  headText: "text-indigo-900",  accent: "accent-indigo-600" },
+            { key: "immediate", label: "Immediate Recall", short: "IR", normKey: "Recall",
+              selBtn: "bg-emerald-600 text-white", solid: "bg-emerald-600", cardBg: "bg-emerald-50/50", cardBorder: "border-emerald-100", headText: "text-emerald-900", accent: "accent-emerald-600" },
+            { key: "delayed",   label: "Delayed Recall",   short: "DR", normKey: "Delayed",
+              selBtn: "bg-amber-500 text-white",   solid: "bg-amber-500",   cardBg: "bg-amber-50/50",   cardBorder: "border-amber-100",   headText: "text-amber-900",   accent: "accent-amber-600" },
+        ];
+        const COND = Object.fromEntries(CONDITIONS.map(c => [c.key, c]));
+
+        const QUAL_FEATURES = [
+            { id: "rotation",      name: "Rotation (≥45°)",                 desc: "Whole figure or a major element rotated." },
+            { id: "perseverative", name: "Perseveration",                   desc: "Inappropriate repetition / replication of an element." },
+            { id: "confabulative", name: "Confabulation",                   desc: "Added details not present in the stimulus." },
+            { id: "fragmented",    name: "Fragmented / piecemeal",          desc: "Disjointed, part-by-part construction; poor configural integrity." },
+            { id: "micrographic",  name: "Micrographia (small)",            desc: "Reproduction markedly reduced in size." },
+            { id: "macrographic",  name: "Macrographia (large)",            desc: "Reproduction markedly enlarged / expanded." },
+            { id: "asym-left",     name: "Left-side distortion / omission", desc: "Left-hemispace elements distorted or missing." },
+            { id: "asym-right",    name: "Right-side distortion / omission",desc: "Right-hemispace elements distorted or missing." },
+            { id: "neglect-left",  name: "Left hemispatial neglect",        desc: "Unilateral neglect of the left hemispace." },
+            { id: "neglect-right", name: "Right hemispatial neglect",       desc: "Unilateral neglect of the right hemispace." },
+        ];
+
+        const ORG_LEVELS = [
+            "— not rated —",
+            "Configural (gestalt) — base rectangle first",
+            "Part-configural — partial structure first",
+            "Piecemeal — detail-by-detail",
+            "Fragmented / unplanned",
+            "Substitution / very poor planning",
+        ];
+
+        // ── Normative table — Meyers & Meyers (1995), ages 22–79 ──────────────
+        // {lo, hi, Copy:[M,SD], Recall:[M,SD], Delayed:[M,SD]}
+        const NORMS = [
+            { lo: 22, hi: 24, Copy: [35.0, 1.1], Recall: [24.9, 4.9], Delayed: [25.18, 6.67] },
+            { lo: 25, hi: 29, Copy: [35.0, 1.4], Recall: [24.8, 5.5], Delayed: [24.87, 6.67] },
+            { lo: 30, hi: 34, Copy: [34.9, 1.7], Recall: [24.6, 6.1], Delayed: [24.41, 6.67] },
+            { lo: 35, hi: 39, Copy: [34.7, 2.0], Recall: [24.2, 6.6], Delayed: [23.85, 6.67] },
+            { lo: 40, hi: 44, Copy: [34.4, 2.3], Recall: [23.6, 6.9], Delayed: [23.17, 6.67] },
+            { lo: 45, hi: 49, Copy: [34.1, 2.6], Recall: [23.0, 7.2], Delayed: [22.38, 6.67] },
+            { lo: 50, hi: 54, Copy: [33.7, 3.0], Recall: [22.1, 7.4], Delayed: [21.49, 6.67] },
+            { lo: 55, hi: 59, Copy: [33.3, 3.3], Recall: [21.1, 7.4], Delayed: [20.47, 6.67] },
+            { lo: 60, hi: 64, Copy: [32.7, 3.6], Recall: [20.0, 7.4], Delayed: [19.35, 6.67] },
+            { lo: 65, hi: 69, Copy: [32.1, 3.9], Recall: [18.7, 7.2], Delayed: [18.12, 6.67] },
+            { lo: 70, hi: 74, Copy: [31.4, 4.2], Recall: [17.3, 6.9], Delayed: [16.78, 6.67] },
+            { lo: 75, hi: 79, Copy: [30.7, 4.5], Recall: [15.7, 6.6], Delayed: [15.33, 6.67] },
+        ];
+        const CLASSIFICATIONS = [
+            [ 2.0,  Infinity,  "Above Average"],
+            [ 0.5,  2.0,       "Average"],
+            [-0.5,  0.5,       "Low Average"],
+            [-1.0, -0.5,       "Mildly Impaired"],
+            [-1.5, -1.0,       "Moderately Impaired"],
+            [-2.0, -1.5,       "Severely Impaired"],
+            [-Infinity, -2.0,  "Extremely Impaired"],
+        ];
+
+        // ──────────────────────────────────────────────────────────────────────
+        //  State
+        // ──────────────────────────────────────────────────────────────────────
+        const scores = { copy: {}, immediate: {}, delayed: {} };
+        UNITS.forEach(u => { scores.copy[u.id] = null; scores.immediate[u.id] = null; scores.delayed[u.id] = null; });
+        const pencilOrders = { copy: [], immediate: [], delayed: [] };
+        const PENCIL_COLORS = ["Red", "Blue", "Green", "Orange", "Black"];
+
+        // ──────────────────────────────────────────────────────────────────────
+        //  Helpers
+        // ──────────────────────────────────────────────────────────────────────
+        const fmt = n => Number.isInteger(n) ? String(n) : n.toFixed(1);
+
+        function erf(x) { // Abramowitz & Stegun 7.1.26
+            const sign = x < 0 ? -1 : 1; x = Math.abs(x);
+            const a1 = 0.254829592, a2 = -0.284496736, a3 = 1.421413741, a4 = -1.453152027, a5 = 1.061405429, p = 0.3275911;
+            const t = 1 / (1 + p * x);
+            const y = 1 - (((((a5 * t + a4) * t) + a3) * t + a2) * t + a1) * t * Math.exp(-x * x);
+            return sign * y;
+        }
+        const normCdf = z => 0.5 * (1 + erf(z / Math.SQRT2));
+
+        function getNorm(age, normKey, score) {
+            if (!age || isNaN(age)) return { note: "—" };
+            const band = NORMS.find(b => age >= b.lo && age <= b.hi);
+            if (!band) return { note: `age ${age} out of range` };
+            const [mean, sd] = band[normKey];
+            const z = sd > 0 ? (score - mean) / sd : 0;
+            const pct = Math.round(normCdf(z) * 1000) / 10;
+            let cls = "—";
+            for (const [lo, hi, label] of CLASSIFICATIONS) { if (z >= lo && z < hi) { cls = label; break; } }
+            return { mean, sd, z: Math.round(z * 100) / 100, percentile: pct, classification: cls };
+        }
+
+        function conditionTotal(key) {
+            return UNITS.reduce((sum, u) => sum + (scores[key][u.id] || 0), 0);
+        }
+        function conditionScoredCount(key) {
+            return UNITS.filter(u => scores[key][u.id] !== null).length;
+        }
+
+        // ──────────────────────────────────────────────────────────────────────
+        //  Static UI builders
+        // ──────────────────────────────────────────────────────────────────────
+        function buildUnitLegend() {
+            const ol = document.getElementById("unit-legend");
+            ol.innerHTML = UNITS.map(u =>
+                `<li><span class="font-bold text-slate-700">${u.id}.</span> ${u.name}</li>`).join("");
+        }
+
+        function buildTrialAdminCards() {
+            const wrap = document.getElementById("trial-admin-cards");
+            wrap.innerHTML = CONDITIONS.map(c => `
+                <div class="${c.cardBg} rounded-xl p-3 border ${c.cardBorder}">
+                    <h3 class="font-bold text-xs ${c.headText} flex items-center gap-1.5 mb-2">
+                        <span class="${c.solid} text-white rounded-full w-5 h-5 flex items-center justify-center text-[10px]">${c.short}</span> ${c.label}
+                    </h3>
+                    <label class="block text-[10px] font-semibold text-slate-500 mb-1">Completion Time (sec)</label>
+                    <input type="number" id="${c.key}-time" min="0" placeholder="0" oninput="updateCalculations()"
+                           class="w-full border rounded-lg px-3 py-1 text-sm font-semibold focus:border-indigo-500 focus:outline-none bg-white">
+                </div>`).join("");
+        }
+
+        function buildOrgApproachRow() {
+            const wrap = document.getElementById("org-approach-row");
+            wrap.innerHTML = CONDITIONS.map(c => `
+                <div>
+                    <label class="block text-xs font-semibold ${c.headText} mb-1">${c.label}</label>
+                    <select id="org-${c.key}" onchange="updateCalculations()" class="w-full border rounded-lg px-2 py-1.5 text-xs bg-white focus:border-indigo-500 focus:outline-none">
+                        ${ORG_LEVELS.map((lvl, i) => `<option value="${i === 0 ? '' : lvl}">${lvl}</option>`).join("")}
+                    </select>
+                </div>`).join("");
+        }
+
+        function buildQualMatrix() {
+            const body = document.getElementById("qual-matrix-body");
+            body.innerHTML = QUAL_FEATURES.map(f => `
+                <tr class="hover:bg-slate-50/50">
+                    <td class="p-2.5">
+                        <div class="font-semibold text-slate-700">${f.name}</div>
+                        <div class="text-[10px] text-slate-400">${f.desc}</div>
+                    </td>
+                    ${CONDITIONS.map(c => `
+                        <td class="p-2.5 text-center">
+                            <input type="checkbox" id="qual-${c.key}-${f.id}" onchange="updateCalculations()" class="${c.accent} w-4 h-4 cursor-pointer">
+                        </td>`).join("")}
+                </tr>`).join("");
+        }
+
+        // ──────────────────────────────────────────────────────────────────────
+        //  Accuracy table
+        // ──────────────────────────────────────────────────────────────────────
+        function renderTable() {
+            const body = document.getElementById("units-table-body");
+            body.innerHTML = "";
+            UNITS.forEach(u => {
+                const row = document.createElement("tr");
+                row.className = "border-b border-slate-100 hover:bg-slate-50/50 transition group";
+                row.onmouseenter = () => highlightStimulusElement(u.id, true);
+                row.onmouseleave = () => highlightStimulusElement(u.id, false);
+
+                const cell = (cond) => {
+                    const cur = scores[cond.key][u.id];
+                    return `
+                        <td class="py-2 text-center px-1">
+                            <div class="inline-flex rounded-lg border border-slate-200 p-0.5 bg-slate-50">
+                                ${SCORE_VALUES.map(v => `
+                                    <button onclick="setScore('${cond.key}', ${u.id}, ${v})"
+                                            class="w-9 py-1 rounded-md text-[11px] font-bold transition duration-150 ${v === cur ? cond.selBtn + ' font-black shadow-sm' : 'text-slate-500 hover:bg-slate-200/50 hover:text-slate-700'}">
+                                        ${v === 0.5 ? '½' : v}
+                                    </button>`).join("")}
+                            </div>
+                        </td>`;
+                };
+
+                row.innerHTML = `
+                    <td class="py-2 pr-2">
+                        <div class="font-bold text-slate-800">${u.id}. ${u.name}</div>
+                        <div class="text-[10px] text-slate-400 font-medium">${u.region}</div>
+                    </td>
+                    ${cell(COND.copy)}
+                    ${cell(COND.immediate)}
+                    ${cell(COND.delayed)}
+                `;
+                body.appendChild(row);
+            });
+        }
+
+        function setScore(cond, unitId, val) {
+            // Toggle off if the same value is clicked again
+            scores[cond][unitId] = (scores[cond][unitId] === val) ? null : val;
+            renderTable();
+            updateCalculations();
+        }
+
+        function highlightStimulusElement(id, active) {
+            const badge = document.getElementById("element-highlight-badge");
+            const overlay = document.getElementById("stimulus-overlay");
+            const u = UNITS.find(e => e.id === id);
+            if (!badge || !overlay || !u) return;
+            if (active) {
+                badge.textContent = `Unit ${id}: ${u.name}`;
+                badge.classList.remove("hidden");
+                overlay.style.filter = "drop-shadow(0 0 6px rgba(79, 70, 229, 0.75))";
+            } else {
+                badge.classList.add("hidden");
+                overlay.style.filter = "none";
+            }
+        }
+
+        // ──────────────────────────────────────────────────────────────────────
+        //  Construction-order pencils (Copy)
+        // ──────────────────────────────────────────────────────────────────────
+        function pencilHex(c) {
+            return ({ Red: '#EF4444', Blue: '#3B82F6', Green: '#10B981', Orange: '#F59E0B', Black: '#1E293B' })[c] || '#64748B';
+        }
+        function buildConstructionOrderRow() {
+            const wrap = document.getElementById("construction-order-row");
+            wrap.innerHTML = CONDITIONS.map(c => `
+                <div class="border ${c.cardBorder} rounded-lg p-2.5 ${c.cardBg}">
+                    <div class="text-xs font-semibold ${c.headText} mb-1.5">${c.label}</div>
+                    <div id="pencils-${c.key}" class="flex flex-wrap items-center gap-1 min-h-[30px]"></div>
+                    <div class="flex flex-wrap items-center gap-1 mt-1.5">
+                        ${PENCIL_COLORS.map(col => `
+                            <button title="Add ${col}" onclick="addPencil('${c.key}', '${col}')"
+                                    class="w-6 h-6 rounded-full border border-slate-300 hover:scale-110 transition flex items-center justify-center"
+                                    style="background:${pencilHex(col)}">
+                                <i class="fa-solid fa-plus text-[8px] text-white/90"></i>
+                            </button>`).join("")}
+                    </div>
+                </div>`).join("");
+        }
+        function renderPencils() {
+            CONDITIONS.forEach(c => {
+                const div = document.getElementById(`pencils-${c.key}`);
+                if (!div) return;
+                const arr = pencilOrders[c.key] || [];
+                if (!arr.length) { div.innerHTML = `<span class="text-[10px] text-slate-400 italic">none logged</span>`; return; }
+                div.innerHTML = arr.map((color, i) => `
+                    <span class="inline-flex items-center gap-1 bg-white border border-slate-200 pl-1.5 pr-0.5 py-0.5 rounded-full shadow-sm text-[11px] font-bold">
+                        <span class="w-2 h-2 rounded-full" style="background-color:${pencilHex(color)}"></span>
+                        <span>${i + 1}:${color}</span>
+                        <button onclick="removePencil('${c.key}', ${i})" class="hover:bg-slate-100 rounded-full w-3.5 h-3.5 text-[10px] text-slate-400 hover:text-slate-600 font-bold leading-none">×</button>
+                    </span>`).join("");
+            });
+        }
+        function addPencil(trial, color) { (pencilOrders[trial] || (pencilOrders[trial] = [])).push(color); renderPencils(); updateCalculations(); }
+        function removePencil(trial, i) { pencilOrders[trial].splice(i, 1); renderPencils(); updateCalculations(); }
+
+        // ──────────────────────────────────────────────────────────────────────
+        //  Examinee image + overlay
+        // ──────────────────────────────────────────────────────────────────────
+        function setExamineeDrawingVisible(isVisible) {
+            const img = document.getElementById("examinee-drawing");
+            const placeholder = document.getElementById("examinee-placeholder");
+            img.classList.toggle("hidden", !isVisible);
+            placeholder.classList.toggle("hidden", isVisible);
+        }
+        function handleImageUpload(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = ev => {
+                document.getElementById("examinee-drawing").src = ev.target.result;
+                setExamineeDrawingVisible(true);
+            };
+            reader.readAsDataURL(file);
+        }
+        function updateOverlay() {
+            const op = document.getElementById("overlay-opacity").value;
+            const scale = document.getElementById("overlay-scale").value;
+            const rotate = document.getElementById("overlay-rotate").value;
+            const x = document.getElementById("overlay-x").value;
+            document.getElementById("opacity-val").textContent = op + "%";
+            document.getElementById("scale-val").textContent = (scale / 100).toFixed(1) + "x";
+            document.getElementById("rotate-val").textContent = rotate + "°";
+            document.getElementById("x-val").textContent = x + "px";
+            const overlay = document.getElementById("stimulus-overlay");
+            overlay.style.opacity = op / 100;
+            overlay.style.transform = `scale(${scale / 100}) rotate(${rotate}deg) translate(${x}px, 0px)`;
+        }
+        function resetOverlay() {
+            document.getElementById("overlay-opacity").value = 40;
+            document.getElementById("overlay-scale").value = 100;
+            document.getElementById("overlay-rotate").value = 0;
+            document.getElementById("overlay-x").value = 0;
+            updateOverlay();
+        }
+
+        // ──────────────────────────────────────────────────────────────────────
+        //  Tabs
+        // ──────────────────────────────────────────────────────────────────────
+        function showLeftTab(tabId) {
+            document.querySelectorAll(".left-tab-content").forEach(el => el.classList.add("hidden"));
+            document.getElementById(tabId).classList.remove("hidden");
+            [["drawing-view-tab", "drawing-view-tab-btn"], ["stimulus-ref-tab", "stimulus-ref-tab-btn"], ["schematic-tab", "schematic-tab-btn"]]
+                .forEach(([id, btn]) => {
+                    document.getElementById(btn).className = "flex-1 py-1.5 px-3 rounded-lg text-xs font-semibold hover:bg-slate-50 transition " + (tabId === id ? "active-left-tab" : "text-slate-600");
+                });
+        }
+        function showScoringTab(tabId) {
+            document.querySelectorAll(".scoring-tab-content").forEach(el => el.classList.add("hidden"));
+            document.getElementById(tabId).classList.remove("hidden");
+            [["units-tab", "units-tab-btn"], ["qual-tab", "qual-tab-btn"], ["summary-tab", "summary-tab-btn"]]
+                .forEach(([id, btn]) => {
+                    document.getElementById(btn).className = "flex-1 py-2 px-4 rounded-lg text-sm font-semibold hover:bg-slate-50 transition " + (tabId === id ? "active-tab" : "text-slate-500");
+                });
+        }
+
+        // ──────────────────────────────────────────────────────────────────────
+        //  Calculations + summary
+        // ──────────────────────────────────────────────────────────────────────
+        function updateCalculations() {
+            const totals = {
+                copy: conditionTotal("copy"),
+                immediate: conditionTotal("immediate"),
+                delayed: conditionTotal("delayed"),
+            };
+
+            // Badges (Tab 1)
+            document.getElementById("total-copy-badge").textContent = fmt(totals.copy);
+            document.getElementById("total-immediate-badge").textContent = fmt(totals.immediate);
+            document.getElementById("total-delayed-badge").textContent = fmt(totals.delayed);
+
+            // Stat cards
+            document.getElementById("sum-copy").textContent = fmt(totals.copy) + "/36";
+            document.getElementById("sum-immediate").textContent = fmt(totals.immediate) + "/36";
+            document.getElementById("sum-delayed").textContent = fmt(totals.delayed) + "/36";
+
+            // Retention (Delayed / Copy; show Immediate / Copy as subline)
+            const delPct = totals.copy > 0 ? Math.round((totals.delayed / totals.copy) * 100) : 0;
+            const immPct = totals.copy > 0 ? Math.round((totals.immediate / totals.copy) * 100) : 0;
+            document.getElementById("sum-retention").textContent = delPct + "%";
+            document.getElementById("sum-retention-sub").textContent = `Del/Copy · Imm ${immPct}%`;
+
+            // Norms table
+            const age = parseInt(document.getElementById("dem-age").value, 10);
+            const body = document.getElementById("norms-table-body");
+            body.innerHTML = CONDITIONS.map(c => {
+                const raw = totals[c.key];
+                const time = document.getElementById(`${c.key}-time`).value || "—";
+                const n = getNorm(age, c.normKey, raw);
+                const normCell = n.note ? `<span class="text-slate-400">${n.note}</span>` : `${n.mean} (${n.sd})`;
+                const zCell = n.note ? "—" : (n.z >= 0 ? "+" : "") + n.z.toFixed(2);
+                const pctCell = n.note ? "—" : n.percentile + "th";
+                const clsCell = n.note ? "—" : n.classification;
+                return `
+                    <tr>
+                        <td class="p-3 font-semibold ${c.headText}">${c.label}</td>
+                        <td class="p-3 text-center font-bold">${fmt(raw)}</td>
+                        <td class="p-3 text-center">${normCell}</td>
+                        <td class="p-3 text-center">${zCell}</td>
+                        <td class="p-3 text-center">${pctCell}</td>
+                        <td class="p-3 text-center">${clsCell}</td>
+                        <td class="p-3 text-center">${time === "—" ? "—" : time + "s"}</td>
+                    </tr>`;
+            }).join("");
+
+            updateQualitativeList();
+            generateNarrative(totals, delPct, immPct, age);
+            saveSession();
+        }
+
+        function updateQualitativeList() {
+            const listDiv = document.getElementById("qualitative-active-list");
+            let html = "";
+            QUAL_FEATURES.forEach(f => {
+                const hits = CONDITIONS.filter(c => document.getElementById(`qual-${c.key}-${f.id}`)?.checked).map(c => c.short);
+                if (hits.length) {
+                    html += `<span class="px-2 py-0.5 rounded-full font-semibold text-[10px] bg-indigo-50 text-indigo-700 border border-indigo-200">${f.name} (${hits.join("/")})</span>`;
+                }
+            });
+            listDiv.innerHTML = html || `<span class="text-slate-400 italic">No qualitative features checked.</span>`;
+        }
+
+        function rawClass(normKey, score, age) {
+            // Prefer age-banded classification; fall back to coarse raw ranges
+            const n = getNorm(age, normKey, score);
+            if (!n.note) return n.classification + " range";
+            if (normKey === "Copy") return score >= 32 ? "broadly normal" : score >= 28 ? "mildly reduced" : score >= 20 ? "moderately reduced" : "severely reduced";
+            return score >= 22 ? "broadly normal" : score >= 16 ? "mildly reduced" : score >= 10 ? "moderately reduced" : "severely reduced";
+        }
+
+        function generateNarrative(totals, delPct, immPct, age) {
+            const name = document.getElementById("dem-name").value.trim() || "The examinee";
+            const ageStr = (age && !isNaN(age)) ? `, age ${age},` : "";
+
+            const copyClass = rawClass("Copy", totals.copy, age);
+            const immClass = rawClass("Recall", totals.immediate, age);
+            const delClass = rawClass("Delayed", totals.delayed, age);
+
+            const cTime = document.getElementById("copy-time").value;
+            const orgCopy = document.getElementById("org-copy").value;
+
+            let text = `${name}${ageStr} was administered the Rey-Osterrieth Complex Figure Test (ROCFT) to assess visuoconstructional ability, organizational strategy, and nonverbal (visual) memory. The figure was scored using the 18-unit Osterrieth system (each unit 0–2, maximum 36).\n\n`;
+
+            text += `On the Copy trial, ${name} reproduced the figure${cTime ? ` in ${cTime} seconds` : ""}, earning ${fmt(totals.copy)}/36 (${copyClass}).`;
+            if (orgCopy) text += ` Construction was approached in a ${orgCopy.toLowerCase()} manner.`;
+            text += `\n\n`;
+
+            text += `On Immediate Recall, ${name} reproduced ${fmt(totals.immediate)}/36 from memory (${immClass}), retaining ${immPct}% of the copied detail. `;
+            text += `After a delay, the Delayed Recall trial yielded ${fmt(totals.delayed)}/36 (${delClass}), a ${delPct}% retention of the copy production.\n\n`;
+
+            // Qualitative
+            const activeFeats = QUAL_FEATURES
+                .filter(f => CONDITIONS.some(c => document.getElementById(`qual-${c.key}-${f.id}`)?.checked))
+                .map(f => f.name.toLowerCase().replace(/\s*\(.*?\)/g, ""));
+            if (activeFeats.length) {
+                text += `Qualitative review of the productions was notable for ${activeFeats.join(", ")}. `;
+            } else {
+                text += `No notable qualitative distortions (rotation, perseveration, confabulation, fragmentation, size distortion, asymmetry, or hemispatial neglect) were observed. `;
+            }
+            if (!age || isNaN(age)) {
+                text += `\n\n(Enter the examinee's age to obtain age-banded z-scores, percentiles, and classifications.)`;
+            }
+
+            document.getElementById("clinical-narrative").value = text;
+        }
+
+        // ──────────────────────────────────────────────────────────────────────
+        //  Persistence: JSON export/import + same-tab session autosave
+        // ──────────────────────────────────────────────────────────────────────
+        const SESSION_KEY = "rocft_scoring_session_v1";
+
+        function gatherState() {
+            const qual = {};
+            CONDITIONS.forEach(c => {
+                qual[c.key] = {};
+                QUAL_FEATURES.forEach(f => { qual[c.key][f.id] = !!document.getElementById(`qual-${c.key}-${f.id}`)?.checked; });
+            });
+            return {
+                _schema: "rocft-scoring/v1",
+                demographics: {
+                    name: document.getElementById("dem-name").value,
+                    id: document.getElementById("dem-id").value,
+                    date: document.getElementById("dem-date").value,
+                    age: document.getElementById("dem-age").value,
+                },
+                times: {
+                    copy: document.getElementById("copy-time").value,
+                    immediate: document.getElementById("immediate-time").value,
+                    delayed: document.getElementById("delayed-time").value,
+                },
+                organization: {
+                    copy: document.getElementById("org-copy").value,
+                    immediate: document.getElementById("org-immediate").value,
+                    delayed: document.getElementById("org-delayed").value,
+                },
+                pencilOrders: JSON.parse(JSON.stringify(pencilOrders)),
+                scores: JSON.parse(JSON.stringify(scores)),
+                qualitative: qual,
+                narrative: document.getElementById("clinical-narrative").value,
+            };
+        }
+
+        function applyState(s) {
+            if (!s) return;
+            const d = s.demographics || {};
+            document.getElementById("dem-name").value = d.name || "";
+            document.getElementById("dem-id").value = d.id || "";
+            document.getElementById("dem-date").value = d.date || "";
+            document.getElementById("dem-age").value = d.age || "";
+            const t = s.times || {};
+            ["copy", "immediate", "delayed"].forEach(k => { const el = document.getElementById(`${k}-time`); if (el) el.value = t[k] || ""; });
+            const o = s.organization || {};
+            ["copy", "immediate", "delayed"].forEach(k => { const el = document.getElementById(`org-${k}`); if (el) el.value = o[k] || ""; });
+            // per-trial construction order (back-compat: an old single array maps to the Copy trial)
+            ["copy", "immediate", "delayed"].forEach(k => pencilOrders[k] = []);
+            if (s.pencilOrders && typeof s.pencilOrders === "object") {
+                ["copy", "immediate", "delayed"].forEach(k => { if (Array.isArray(s.pencilOrders[k])) pencilOrders[k] = s.pencilOrders[k].slice(); });
+            } else if (Array.isArray(s.pencilOrder)) {
+                pencilOrders.copy = s.pencilOrder.slice();
+            }
+            if (s.scores) {
+                ["copy", "immediate", "delayed"].forEach(k => {
+                    UNITS.forEach(u => { scores[k][u.id] = (s.scores[k] && s.scores[k][u.id] != null) ? s.scores[k][u.id] : null; });
+                });
+            }
+            const q = s.qualitative || {};
+            CONDITIONS.forEach(c => QUAL_FEATURES.forEach(f => {
+                const el = document.getElementById(`qual-${c.key}-${f.id}`);
+                if (el) el.checked = !!(q[c.key] && q[c.key][f.id]);
+            }));
+            renderTable();
+            renderPencils();
+            updateCalculations();
+            if (s.narrative) document.getElementById("clinical-narrative").value = s.narrative; // restore manual edits last
+            saveSession();
+
+        function saveSession() {
+            try { sessionStorage.setItem(SESSION_KEY, JSON.stringify(gatherState())); } catch (e) { /* quota / private mode */ }
+        }
+
+        function exportJSON() {
+            const state = gatherState();
+            const blob = new Blob([JSON.stringify(state, null, 2)], { type: "application/json" });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement("a");
+            const idPart = (state.demographics.id || state.demographics.name || "rocft").replace(/[^\w-]+/g, "_");
+            const datePart = state.demographics.date || "undated";
+            a.href = url;
+            a.download = `ROCFT_${idPart}_${datePart}.json`;
+            document.body.appendChild(a); a.click(); a.remove();
+            URL.revokeObjectURL(url);
+        }
+
+        function importJSON(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = ev => {
+                try {
+                    const s = JSON.parse(ev.target.result);
+                    applyState(s);
+                } catch (err) {
+                    alert("Could not parse that file as ROCFT scoring JSON.");
+                }
+                e.target.value = ""; // allow re-importing the same file
+            };
+            reader.readAsText(file);
+        }
+
+        function resetScoring() {
+            if (!confirm("Reset all scores, qualitative features, and notes?")) return;
+            UNITS.forEach(u => { scores.copy[u.id] = null; scores.immediate[u.id] = null; scores.delayed[u.id] = null; });
+            ["copy", "immediate", "delayed"].forEach(k => pencilOrders[k] = []);
+            document.querySelectorAll("#qual-matrix-body input[type='checkbox']").forEach(ch => ch.checked = false);
+            ["copy", "immediate", "delayed"].forEach(k => {
+                document.getElementById(`${k}-time`).value = "";
+                document.getElementById(`org-${k}`).value = "";
+            });
+            document.getElementById("clinical-narrative").value = "";
+            try { sessionStorage.removeItem(SESSION_KEY); } catch (e) {}
+            renderTable();
+            renderPencils();
+            resetOverlay();
+            updateCalculations();
+            showScoringTab("units-tab");
+        }
+
+        // ──────────────────────────────────────────────────────────────────────
+        //  Report export (Copy / Markdown / Quarto / Word / PDF)
+        // ──────────────────────────────────────────────────────────────────────
+        function fileStem() {
+            const id = document.getElementById("dem-id").value || document.getElementById("dem-name").value || "rocft";
+            const date = document.getElementById("dem-date").value || "undated";
+            return `${id.replace(/[^\w-]+/g, "_")}_${date}`;
+        }
+
+        function collectReportData() {
+            const g = gatherState();
+            const age = parseInt(g.demographics.age, 10);
+            const totals = { copy: conditionTotal("copy"), immediate: conditionTotal("immediate"), delayed: conditionTotal("delayed") };
+            const rows = CONDITIONS.map(c => {
+                const n = getNorm(age, c.normKey, totals[c.key]);
+                return {
+                    label: c.label, raw: totals[c.key], time: g.times[c.key] || "",
+                    norm: n.note ? "" : `${n.mean} (${n.sd})`,
+                    z: n.note ? "" : (n.z >= 0 ? "+" : "") + n.z.toFixed(2),
+                    pct: n.note ? "" : n.percentile + "th",
+                    cls: n.note ? "" : n.classification,
+                };
+            });
+            const delPct = totals.copy > 0 ? Math.round(totals.delayed / totals.copy * 100) : 0;
+            const immPct = totals.copy > 0 ? Math.round(totals.immediate / totals.copy * 100) : 0;
+            const quals = QUAL_FEATURES.map(f => {
+                const hits = CONDITIONS.filter(c => g.qualitative[c.key] && g.qualitative[c.key][f.id]).map(c => c.short);
+                return hits.length ? { name: f.name, hits } : null;
+            }).filter(Boolean);
+            return { g, age, totals, rows, delPct, immPct, quals };
+        }
+
+        function reportMarkdown(d, opts) {
+            const withTitle = !opts || opts.title !== false;
+            const dem = d.g.demographics;
+            const m = [];
+            if (withTitle) m.push(`# Rey-Osterrieth Complex Figure Test (ROCFT) — Scoring Report`, ``);
+            m.push(`**Examinee:** ${dem.name || "—"}  |  **ID:** ${dem.id || "—"}  |  **Date:** ${dem.date || "—"}  |  **Age:** ${dem.age || "—"}`, ``);
+            m.push(`## Scores`, ``);
+            m.push(`| Trial | Raw / 36 | Time (s) | Norm M (SD) | z | %ile | Classification |`);
+            m.push(`|---|---|---|---|---|---|---|`);
+            d.rows.forEach(r => m.push(`| ${r.label} | ${fmt(r.raw)} | ${r.time || "—"} | ${r.norm || "—"} | ${r.z || "—"} | ${r.pct || "—"} | ${r.cls || "—"} |`));
+            m.push(``, `**Percent retention:** Delayed/Copy = ${d.delPct}% · Immediate/Copy = ${d.immPct}%`, ``);
+            m.push(`## Organizational Approach`, ``);
+            CONDITIONS.forEach(c => m.push(`- **${c.label}:** ${d.g.organization[c.key] || "—"}`));
+            m.push(``);
+            const anyPencils = CONDITIONS.some(c => (d.g.pencilOrders[c.key] || []).length);
+            if (anyPencils) {
+                m.push(`## Construction Order (colored-pencil sequence)`, ``);
+                CONDITIONS.forEach(c => { const a = d.g.pencilOrders[c.key] || []; if (a.length) m.push(`- **${c.label}:** ${a.map((x, i) => `${i + 1} ${x}`).join(" → ")}`); });
+                m.push(``);
+            }
+            m.push(`## Qualitative Features`, ``);
+            if (d.quals.length) d.quals.forEach(q => m.push(`- ${q.name} (${q.hits.join("/")})`));
+            else m.push(`- None noted.`);
+            m.push(``, `## Clinical Narrative`, ``, d.g.narrative || "—", ``);
+            m.push(`---`, ``, `*Scored with the ROCFT Interactive Scoring Dashboard. Osterrieth 18-unit system (each unit 0–2, max 36). Norms: Meyers & Meyers (1995).*`);
+            return m.join("\n");
+        }
+
+        function reportQuarto(d) {
+            const dem = d.g.demographics;
+            const esc = s => (s || "").replace(/"/g, "'");
+            const yaml = [
+                `---`,
+                `title: "Rey-Osterrieth Complex Figure (ROCFT) — Scoring Report"`,
+                `subtitle: "${esc(dem.name) || "Examinee"}${dem.date ? " — " + dem.date : ""}"`,
+                dem.date ? `date: "${dem.date}"` : `date: today`,
+                `format:`,
+                `  pdf: default`,
+                `  docx: default`,
+                `  html:`,
+                `    embed-resources: true`,
+                `---`,
+                ``,
+            ].join("\n");
+            return yaml + reportMarkdown(d, { title: false });
+        }
+
+        function reportHTMLDoc(d) {
+            const dem = d.g.demographics;
+            const esc = s => String(s == null ? "" : s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+            const rowsHTML = d.rows.map(r => `<tr><td>${esc(r.label)}</td><td style="text-align:center">${fmt(r.raw)}</td><td style="text-align:center">${esc(r.time) || "—"}</td><td style="text-align:center">${esc(r.norm) || "—"}</td><td style="text-align:center">${esc(r.z) || "—"}</td><td style="text-align:center">${esc(r.pct) || "—"}</td><td style="text-align:center">${esc(r.cls) || "—"}</td></tr>`).join("");
+            const org = CONDITIONS.map(c => `<li><strong>${c.label}:</strong> ${esc(d.g.organization[c.key]) || "—"}</li>`).join("");
+            const anyPencils = CONDITIONS.some(c => (d.g.pencilOrders[c.key] || []).length);
+            const pencils = anyPencils ? `<h2>Construction Order</h2><ul>${CONDITIONS.map(c => { const a = d.g.pencilOrders[c.key] || []; return a.length ? `<li><strong>${c.label}:</strong> ${a.map((x, i) => `${i + 1} ${esc(x)}`).join(" → ")}</li>` : ""; }).join("")}</ul>` : "";
+            const quals = d.quals.length ? `<ul>${d.quals.map(q => `<li>${esc(q.name)} (${q.hits.join("/")})</li>`).join("")}</ul>` : `<p>None noted.</p>`;
+            const narr = `<p>${esc(d.g.narrative || "—").replace(/\n\n+/g, "</p><p>").replace(/\n/g, "<br>")}</p>`;
+            return `<!DOCTYPE html><html><head><meta charset="utf-8"><title>ROCFT Report</title>
+<style>
+body{font-family:Georgia,'Times New Roman',serif;color:#1e293b;max-width:740px;margin:0 auto;padding:24px;line-height:1.45;}
+h1{font-size:20px;border-bottom:2px solid #4f46e5;padding-bottom:6px;}
+h2{font-size:15px;color:#3730a3;margin-top:22px;border-bottom:1px solid #e2e8f0;padding-bottom:3px;}
+table{border-collapse:collapse;width:100%;font-size:12px;margin:8px 0;}
+th,td{border:1px solid #cbd5e1;padding:5px 8px;}
+th{background:#eef2ff;text-align:center;}
+.meta{font-size:12px;color:#475569;margin:4px 0 0;}
+.foot{font-size:10px;color:#94a3b8;margin-top:20px;border-top:1px solid #e2e8f0;padding-top:6px;}
+</style></head><body>
+<h1>Rey-Osterrieth Complex Figure Test (ROCFT) — Scoring Report</h1>
+<p class="meta"><strong>Examinee:</strong> ${esc(dem.name) || "—"} &nbsp;|&nbsp; <strong>ID:</strong> ${esc(dem.id) || "—"} &nbsp;|&nbsp; <strong>Date:</strong> ${esc(dem.date) || "—"} &nbsp;|&nbsp; <strong>Age:</strong> ${esc(dem.age) || "—"}</p>
+<h2>Scores</h2>
+<table><thead><tr><th>Trial</th><th>Raw / 36</th><th>Time (s)</th><th>Norm M (SD)</th><th>z</th><th>%ile</th><th>Classification</th></tr></thead><tbody>${rowsHTML}</tbody></table>
+<p class="meta"><strong>Percent retention:</strong> Delayed/Copy = ${d.delPct}% · Immediate/Copy = ${d.immPct}%</p>
+<h2>Organizational Approach</h2><ul>${org}</ul>
+${pencils}
+<h2>Qualitative Features</h2>${quals}
+<h2>Clinical Narrative</h2>${narr}
+<p class="foot">Scored with the ROCFT Interactive Scoring Dashboard. Osterrieth 18-unit system (each unit 0–2, max 36). Norms: Meyers &amp; Meyers (1995).</p>
+</body></html>`;
+        }
+
+        function flashCopied(msg) {
+            const el = document.getElementById("report-status");
+            if (!el) return;
+            el.textContent = msg || "Copied!";
+            el.style.opacity = "1";
+            setTimeout(() => { el.style.opacity = "0"; }, 1600);
+        }
+
+        function saveBlob(blob, filename) {
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement("a");
+            a.href = url; a.download = filename;
+            document.body.appendChild(a); a.click(); a.remove();
+            URL.revokeObjectURL(url);
+        }
+
+        async function copyReport() {
+            const md = reportMarkdown(collectReportData());
+            try { await navigator.clipboard.writeText(md); flashCopied(); }
+            catch (e) {
+                const ta = document.createElement("textarea");
+                ta.value = md; ta.style.position = "fixed"; ta.style.opacity = "0";
+                document.body.appendChild(ta); ta.select();
+                try { document.execCommand("copy"); flashCopied(); } catch (e2) { alert("Copy failed — select the narrative text manually."); }
+                ta.remove();
+            }
+        }
+
+        function downloadReport(format) {
+            const d = collectReportData();
+            const text = format === "qmd" ? reportQuarto(d) : reportMarkdown(d);
+            saveBlob(new Blob([text], { type: "text/markdown;charset=utf-8" }), `ROCFT_${fileStem()}.${format === "qmd" ? "qmd" : "md"}`);
+            flashCopied(format === "qmd" ? "Saved .qmd" : "Saved .md");
+        }
+
+        function downloadDocx() {
+            if (!window.htmlDocx) {
+                alert("One-click Word export needs the html-docx-js CDN (internet connection).\n\nAlternatives: download the Quarto .qmd and run `quarto render <file>.qmd --to docx`, or use Markdown.");
+                return;
+            }
+            const d = collectReportData();
+            try {
+                saveBlob(window.htmlDocx.asBlob(reportHTMLDoc(d)), `ROCFT_${fileStem()}.docx`);
+                flashCopied("Saved .docx");
+            } catch (e) {
+                alert("Word export failed: " + e.message + "\nTry the Quarto .qmd route instead.");
+            }
+        }
+
+        function printReportPDF() {
+            // Render into a hidden same-origin iframe and print it. Avoids pop-up
+            // windows (blocked by sandboxes / pop-up blockers) entirely.
+            const d = collectReportData();
+            const old = document.getElementById("report-print-frame");
+            if (old) old.remove();
+            const iframe = document.createElement("iframe");
+            iframe.id = "report-print-frame";
+            iframe.setAttribute("aria-hidden", "true");
+            iframe.style.cssText = "position:fixed;right:0;bottom:0;width:0;height:0;border:0;";
+            document.body.appendChild(iframe);
+            const idoc = iframe.contentWindow.document;
+            idoc.open();
+            idoc.write(reportHTMLDoc(d));
+            idoc.close();
+            let printed = false;
+            const doPrint = () => {
+                if (printed) return;
+                printed = true;
+                try { iframe.contentWindow.focus(); iframe.contentWindow.print(); flashCopied("Opening print…"); }
+                catch (e) { alert("Couldn't open the print dialog in this view. Open the dashboard file directly in your browser (then use the PDF button), or use the Quarto .qmd route for a print-ready PDF."); }
+            };
+            iframe.onload = doPrint;
+            setTimeout(doPrint, 500);
+        }
+
+        // ──────────────────────────────────────────────────────────────────────
+        //  Init
+        // ──────────────────────────────────────────────────────────────────────
+        buildUnitLegend();
+        buildTrialAdminCards();
+        buildOrgApproachRow();
+        buildConstructionOrderRow();
+        buildQualMatrix();
+        renderTable();
+        renderPencils();
+        updateOverlay();
+
+        // Restore an in-progress session (same browser tab only)
+        let restored = false;
+        try {
+            const saved = sessionStorage.getItem(SESSION_KEY);
+            if (saved) { applyState(JSON.parse(saved)); restored = true; }
+        } catch (e) {}
+        if (!restored) updateCalculations();
+    </script>
+</body>
+</html>

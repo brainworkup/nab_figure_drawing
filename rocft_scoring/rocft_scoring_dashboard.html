@@ -235,6 +235,39 @@
                     </div>
                 </div>
 
+                <!-- AI Auto-Score -->
+                <div class="mb-4 border border-fuchsia-200 rounded-xl overflow-hidden no-print">
+                    <div class="bg-fuchsia-50 px-3 py-2 flex items-center justify-between">
+                        <h4 class="font-bold text-xs text-fuchsia-900 flex items-center gap-1.5">
+                            <i class="fa-solid fa-wand-magic-sparkles"></i> AI Auto-Score
+                            <span class="text-[9px] font-semibold bg-fuchsia-200 text-fuchsia-800 px-1.5 py-0.5 rounded-full">beta</span>
+                        </h4>
+                        <button onclick="toggleAISettings()" class="text-fuchsia-700 hover:text-fuchsia-900 text-xs font-semibold flex items-center gap-1"><i class="fa-solid fa-gear"></i> Endpoint</button>
+                    </div>
+                    <div class="p-3 flex flex-col gap-2">
+                        <p class="text-[11px] text-slate-500 leading-relaxed">Pre-score a trial from the uploaded drawing using a vision model (ports the <code>rocft/scorer</code> tier-2/3 prompts). Results are <strong>suggestions to review</strong> — AI-filled units are ringed below; clicking any score confirms/overrides it.</p>
+                        <!-- Endpoint settings (collapsible) -->
+                        <div id="ai-settings" class="hidden grid grid-cols-2 md:grid-cols-4 gap-2 bg-slate-50 border border-slate-100 rounded-lg p-2 text-[11px]">
+                            <div class="col-span-2 md:col-span-2"><label class="block text-slate-500 mb-0.5">Base URL (OpenAI-compatible)</label><input id="ai-base-url" type="text" placeholder="http://localhost:8000/v1" class="w-full border rounded px-2 py-1 focus:outline-none focus:border-fuchsia-500"></div>
+                            <div><label class="block text-slate-500 mb-0.5">Model</label><input id="ai-model" type="text" placeholder="model name" class="w-full border rounded px-2 py-1 focus:outline-none focus:border-fuchsia-500"></div>
+                            <div><label class="block text-slate-500 mb-0.5">API key (optional)</label><input id="ai-key" type="password" placeholder="(local: none)" class="w-full border rounded px-2 py-1 focus:outline-none focus:border-fuchsia-500"></div>
+                            <div><label class="block text-slate-500 mb-0.5">Tier</label><select id="ai-tier" class="w-full border rounded px-2 py-1 bg-white focus:outline-none focus:border-fuchsia-500"><option value="2">2 — 18-item basic</option><option value="3">3 — Taylor criteria</option></select></div>
+                            <div><label class="block text-slate-500 mb-0.5">Temperature</label><input id="ai-temp" type="number" step="0.1" min="0" max="1" value="0.1" class="w-full border rounded px-2 py-1 focus:outline-none focus:border-fuchsia-500"></div>
+                            <div class="col-span-2 flex items-center gap-1.5 mt-1"><input id="ai-json-format" type="checkbox" checked class="accent-fuchsia-600"><label for="ai-json-format" class="text-slate-500">Request strict JSON (<code>response_format</code>)</label></div>
+                        </div>
+                        <!-- Controls -->
+                        <div class="flex flex-wrap items-end gap-2">
+                            <div>
+                                <label class="block text-[10px] font-semibold text-slate-500 mb-0.5">Trial to score</label>
+                                <select id="ai-trial" class="border rounded px-2 py-1 text-xs bg-white focus:outline-none focus:border-fuchsia-500"><option value="copy">Copy</option><option value="immediate">Immediate Recall</option><option value="delayed">Delayed Recall</option></select>
+                            </div>
+                            <button id="ai-run-btn" onclick="runAutoScore()" class="bg-fuchsia-600 hover:bg-fuchsia-700 text-white text-xs font-semibold py-1.5 px-3 rounded-lg shadow-sm transition flex items-center gap-1.5"><i class="fa-solid fa-wand-magic-sparkles"></i> Auto-score from drawing</button>
+                            <span class="text-[10px] text-slate-400">Uses the uploaded drawing + bundled stimulus.</span>
+                        </div>
+                        <div id="ai-status" class="hidden text-xs mt-1 text-slate-500"></div>
+                    </div>
+                </div>
+
                 <!-- Scoring Rubric Helper -->
                 <div class="bg-blue-50/50 rounded-xl p-3 border border-blue-100 text-xs mb-4 text-blue-900 leading-relaxed">
                     <strong class="font-bold flex items-center gap-1 text-blue-950 mb-1"><i class="fa-solid fa-circle-info"></i> Osterrieth Scoring Rubric (per unit, max 2):</strong>
@@ -488,6 +521,9 @@
         UNITS.forEach(u => { scores.copy[u.id] = null; scores.immediate[u.id] = null; scores.delayed[u.id] = null; });
         const pencilOrders = { copy: [], immediate: [], delayed: [] };
         const PENCIL_COLORS = ["Red", "Blue", "Green", "Orange", "Black"];
+        // AI auto-score state: which units were filled by AI (review rings) + per-trial AI metadata
+        const aiSuggested = { copy: new Set(), immediate: new Set(), delayed: new Set() };
+        const aiMeta = { copy: null, immediate: null, delayed: null };
 
         // ──────────────────────────────────────────────────────────────────────
         //  Helpers
@@ -584,12 +620,13 @@
 
                 const cell = (cond) => {
                     const cur = scores[cond.key][u.id];
+                    const ai = aiSuggested[cond.key] && aiSuggested[cond.key].has(u.id);
                     return `
                         <td class="py-2 text-center px-1">
                             <div class="inline-flex rounded-lg border border-slate-200 p-0.5 bg-slate-50">
                                 ${SCORE_VALUES.map(v => `
                                     <button onclick="setScore('${cond.key}', ${u.id}, ${v})"
-                                            class="w-9 py-1 rounded-md text-[11px] font-bold transition duration-150 ${v === cur ? cond.selBtn + ' font-black shadow-sm' : 'text-slate-500 hover:bg-slate-200/50 hover:text-slate-700'}">
+                                            class="w-9 py-1 rounded-md text-[11px] font-bold transition duration-150 ${v === cur ? cond.selBtn + ' font-black shadow-sm' + (ai ? ' ring-2 ring-fuchsia-400 ring-offset-1' : '') : 'text-slate-500 hover:bg-slate-200/50 hover:text-slate-700'}">
                                         ${v === 0.5 ? '½' : v}
                                     </button>`).join("")}
                             </div>
@@ -610,6 +647,8 @@
         }
 
         function setScore(cond, unitId, val) {
+            // A manual click confirms/overrides any AI suggestion for this unit
+            if (aiSuggested[cond]) aiSuggested[cond].delete(unitId);
             // Toggle off if the same value is clicked again
             scores[cond][unitId] = (scores[cond][unitId] === val) ? null : val;
             renderTable();
@@ -870,6 +909,8 @@
                     delayed: document.getElementById("org-delayed").value,
                 },
                 pencilOrders: JSON.parse(JSON.stringify(pencilOrders)),
+                aiMeta: JSON.parse(JSON.stringify(aiMeta)),
+                aiSuggested: { copy: [...aiSuggested.copy], immediate: [...aiSuggested.immediate], delayed: [...aiSuggested.delayed] },
                 scores: JSON.parse(JSON.stringify(scores)),
                 qualitative: qual,
                 narrative: document.getElementById("clinical-narrative").value,
@@ -894,6 +935,11 @@
             } else if (Array.isArray(s.pencilOrder)) {
                 pencilOrders.copy = s.pencilOrder.slice();
             }
+            // AI metadata + review rings
+            ["copy", "immediate", "delayed"].forEach(k => {
+                aiMeta[k] = (s.aiMeta && s.aiMeta[k]) || null;
+                aiSuggested[k] = new Set((s.aiSuggested && s.aiSuggested[k]) || []);
+            });
             if (s.scores) {
                 ["copy", "immediate", "delayed"].forEach(k => {
                     UNITS.forEach(u => { scores[k][u.id] = (s.scores[k] && s.scores[k][u.id] != null) ? s.scores[k][u.id] : null; });
@@ -946,7 +992,9 @@
         function resetScoring() {
             if (!confirm("Reset all scores, qualitative features, and notes?")) return;
             UNITS.forEach(u => { scores.copy[u.id] = null; scores.immediate[u.id] = null; scores.delayed[u.id] = null; });
-            ["copy", "immediate", "delayed"].forEach(k => pencilOrders[k] = []);
+            ["copy", "immediate", "delayed"].forEach(k => { pencilOrders[k] = []; aiSuggested[k].clear(); aiMeta[k] = null; });
+            const aiStatusEl = document.getElementById("ai-status");
+            if (aiStatusEl) { aiStatusEl.className = "hidden"; aiStatusEl.innerHTML = ""; }
             document.querySelectorAll("#qual-matrix-body input[type='checkbox']").forEach(ch => ch.checked = false);
             ["copy", "immediate", "delayed"].forEach(k => {
                 document.getElementById(`${k}-time`).value = "";
@@ -959,6 +1007,305 @@
             resetOverlay();
             updateCalculations();
             showScoringTab("units-tab");
+        }
+
+        // ──────────────────────────────────────────────────────────────────────
+        //  AI auto-score — ports rocft/scorer tier-2 & tier-3 vision prompts
+        // ──────────────────────────────────────────────────────────────────────
+        // 18 element labels exactly as the Python scorer's config.ITEMS (used to
+        // build the prompts, kept verbatim for fidelity with the scorer).
+        const SCORER_ITEMS = {
+            1: "Cross — upper left corner, outside rectangle",
+            2: "Large rectangle",
+            3: "Diagonal cross (X through rectangle)",
+            4: "Horizontal midline of large rectangle",
+            5: "Vertical midline of large rectangle",
+            6: "Small rectangle — within large rectangle, left side",
+            7: "Small segment — above item 6",
+            8: "Four parallel lines — upper left quadrant of rectangle",
+            9: "Triangle — above rectangle, upper right",
+            10: "Small vertical line — within rectangle, below item 9",
+            11: "Circle with three dots — within rectangle",
+            12: "Five parallel lines — lower right, crossing diagonal",
+            13: "Triangle — attached to right side of rectangle",
+            14: "Diamond — attached to item 13",
+            15: "Vertical line — within item 13, parallel to right side of rectangle",
+            16: "Horizontal line — within item 13, continuation of item 4",
+            17: "Cross — attached to lower center of rectangle",
+            18: "Square — attached to lower left of rectangle",
+        };
+        const ITEMS_LIST = Object.entries(SCORER_ITEMS).map(([k, v]) => `  ${k}. ${v}`).join("\n");
+        const ITEMS_JSON = Object.entries(SCORER_ITEMS).map(([k, v]) => `    "${k}": <0, 1, or 2>   // ${v}`).join("\n");
+
+        const TAYLOR_CRITERIA = {
+            1: "The cross must come down to the horizontal midline of the rectangle and must extend above the rectangle. The line joining the cross to the rectangle must be approximately in the middle of the cross and must come between Detail 7 and the top of the rectangle.",
+            2: "The horizontal dimension must not be greater than twice the vertical dimension, nor must the rectangle resemble a square. Score ½ point if the rectangle is incomplete or distorted in any way — because there are so many distortion possibilities and position cannot be scored.",
+            3: "The diagonal cross must touch each of the four corners of the rectangle and must intersect in the middle of the rectangle.",
+            4: "The horizontal midline must go clearly across from the midpoint of the left side of the rectangle to the midpoint of the right side in one unbroken line.",
+            5: "The vertical midline must start at the midpoint of the bottom of the rectangle and go through in one unbroken line to the midpoint at the top. Details 4, 5, and 6 should intersect at the midpoint of the rectangle. Usually only one of the three is scored incorrect for position if they do not all intersect correctly.",
+            6: "The small rectangle within the large rectangle, to the left side. Its top must fall between lines 2 and 3 of the parallel lines (Detail 8). Its width must be approximately one-quarter of the width of the large rectangle — reaching the midpoint between the left side and the vertical midpoint. The internal cross must connect all four corners and intersect at the midpoint (intersecting on Detail 4).",
+            7: "The straight line above Detail 6 must be shorter than the horizontal aspect of Detail 6 and must fall between the top of Detail 6 and the second line of Detail 8.",
+            8: "Exactly four parallel lines in the upper-left quadrant of the rectangle. Lines should be parallel with approximately equal spacing between them. Score is penalized if lines are unduly slanted or if there are more or fewer than four lines.",
+            9: "Triangle above the rectangle on the upper right. The height of the triangle must be less than its base.",
+            10: "Small vertical line within the rectangle just below Detail 9. The line should be clearly shifted to the left within the upper-right quadrangle of the rectangle.",
+            11: "Circle with three dots must be in the lower-right half of the upper-right quadrangle. It must not touch any of the three sides of the triangular area in which it is placed. The dots must be positioned two above and one below, resembling a face.",
+            12: "Exactly five parallel lines crossing the lower-right aspect of Detail 3 (the diagonal). All lines must be within the lower-right quadrangle and must not touch any sides of the quadrangle. Lines should be approximately equidistant from one another.",
+            13: "Triangle on the right end of the large rectangle. The height of the triangle must not be greater than half of the horizontal midline of the rectangle. The slope of its sides must not be a continuation of the slope of Detail 9.",
+            14: "Diamond attached to the end of Detail 13. Must be clearly diamond-shaped and must be attached to the outer point of Detail 13. Must not extend below the bottom of the large rectangle (Detail 2).",
+            15: "Vertical line within triangle 13. Must be parallel to the right vertical of the large rectangle (Detail 2) and must be shifted to the left within Detail 13.",
+            16: "Horizontal line within Detail 13, which is a continuation of Detail 4 to the right. Must come from the midpoint of the right side of the large rectangle and extend to the top of triangle 13. If triangle 13 is slightly askew or Detail 4 does not meet the midpoint of the right side, Detail 16 should still score 2 points if it goes to the top of the triangle from the midpoint of the right side of the rectangle.",
+            17: "Cross attached to the lower center area of the rectangle. The right side of the cross must be clearly longer than the left side but must not extend beyond the right end of the large rectangle. At its left end it must commence at the midpoint of the right side of the square (Detail 18).",
+            18: "Square on the lower-left corner of Detail 2. Must clearly be a square — not rectangular like Detail 6. Its sides should be the same size as the vertical aspect of Detail 6, extending halfway between the left side of the rectangle and the vertical midline of the rectangle.",
+        };
+        const TAYLOR_CRITERIA_TEXT = Object.entries(TAYLOR_CRITERIA).map(([k, v]) => `  ${k}. ${SCORER_ITEMS[k]}\n     Criterion: ${v}`).join("\n");
+
+        const TIER2_SYSTEM = `You are a clinical neuropsychologist scoring the Rey-Osterrieth Complex Figure Test (ROCFT) using the standard 18-element scoring system (Osterrieth, 1944; adapted Meyers & Meyers, 1996). You evaluate each of 18 specific elements for accuracy and placement.
+
+IMPORTANT: The ROCFT stimulus is a black-on-white line drawing. Evaluate line structure, not shading or rendering quality. The patient's drawing may use pencil or pen — assess the shape and placement of lines, not line quality.`;
+
+        function buildTier2User(condition) {
+            return `You will be shown two images:
+  IMAGE 1: The correct Rey-Osterrieth Complex Figure stimulus (line drawing).
+  IMAGE 2: A patient's ${condition} drawing.
+
+Condition is one of: "copy", "immediate_recall", or "delayed_recall".
+For recall conditions, be slightly more lenient on exact spatial placement
+— memory drawings naturally lose precision.
+
+Score each of the 18 elements below using this rubric:
+  2 = Correctly drawn AND correctly placed relative to the whole figure
+  1 = Correctly drawn but poorly placed  OR  distorted but correctly placed
+  0 = Absent, completely unrecognizable, or so distorted as to be meaningless
+
+The 18 elements to score:
+${ITEMS_LIST}
+
+Scoring guidance:
+- "Correctly drawn" means the essential shape/feature is recognizable.
+  Perfect drafting is not required — a recognizable triangle is still a triangle.
+- "Correctly placed" means it appears in the right spatial location relative
+  to the large rectangle and other elements. Minor rotation (e.g. <15°) is
+  not a placement error unless it disrupts the overall configuration.
+- Elements that appear extra times (e.g. 5 parallel lines instead of 4):
+  score based on whether the correct number is present. Extra marks alone
+  do not reduce the score unless they distort the element beyond recognition.
+- Mirroring or 180° rotation of the entire figure: score placement based on
+  internal consistency, not absolute orientation.
+- When uncertain between 1 and 0: score 1 if the element is partially present
+  or distorted but recognizable. Use 0 only when the element is completely
+  absent or bears no resemblance to the target.
+- Score independently for each element — do not let overall quality bias
+  individual item scores, and vice versa.
+
+Return ONLY valid JSON in this exact format:
+{
+  "tier": 2,
+  "condition": "${condition}",
+  "items": {
+${ITEMS_JSON}
+  },
+  "total_score": <sum of all 18 item scores, 0–36>,
+  "confidence": <number 0.0–1.0>,
+  "notes": "<brief observation about scoring challenges or notable errors>"
+}`;
+        }
+
+        const TIER3_SYSTEM = `You are a clinical neuropsychologist scoring the Rey-Osterrieth Complex Figure Test (ROCFT) using the detailed Taylor scoring criteria. You apply specific, explicit rules for each of the 18 elements — evaluating both semantic accuracy and precise spatial placement.
+
+IMPORTANT: The ROCFT stimulus is a black-on-white line drawing. Evaluate line structure, not shading or rendering quality. The patient's drawing may use pencil or pen — assess the shape and placement of lines, not line quality.`;
+
+        function buildTier3User(condition) {
+            return `You will be shown two images:
+  IMAGE 1: The correct Rey-Osterrieth Complex Figure stimulus (line drawing).
+  IMAGE 2: A patient's ${condition} drawing.
+
+Condition is one of: "copy", "immediate_recall", or "delayed_recall".
+For recall conditions, be slightly more lenient on exact spatial placement
+— memory drawings naturally lose precision on measurements like "half the
+width" or "midpoint alignment."
+
+Score each of the 18 elements using this rubric:
+  2 = Meets the specific criterion AND correctly placed
+  1 = Partially meets criterion OR correctly drawn but misplaced
+  0 = Does not meet criterion, absent, or unrecognizable
+
+Specific scoring criteria for each element:
+${TAYLOR_CRITERIA_TEXT}
+
+Scoring guidance:
+- Apply each criterion strictly for a score of 2.
+- A score of 1 should reflect a genuine partial attempt — the element is
+  recognizable and partly satisfies the criterion but falls short on one
+  or more specific requirements.
+- Score 0 only when the element is missing, completely unrecognizable, or
+  fails all substantive requirements of the criterion.
+- The Taylor system uses 0/1/2 scoring (no half-points in this system).
+
+The criterion_flags field should contain one entry per item scored <2,
+describing the specific criterion failure. Format each flag as a short
+phrase naming what failed (e.g. "dots not in face formation", "parallel
+lines touch quadrangle border", "triangle height exceeds base").
+
+Return ONLY valid JSON in this exact format:
+{
+  "tier": 3,
+  "condition": "${condition}",
+  "items": {
+${ITEMS_JSON}
+  },
+  "total_score": <sum of all 18 item scores, 0–36>,
+  "confidence": <number 0.0–1.0>,
+  "criterion_flags": {
+    "<item_number>": "<specific criterion failure if score < 2>"
+  },
+  "notes": "<brief observation about scoring challenges or notable errors>"
+}`;
+        }
+
+        const AI_CONFIG_KEY = "rocft_ai_config_v1";
+        const AI_KEY_KEY = "rocft_ai_key";
+        const AI_CONDITION = { copy: "copy", immediate: "immediate_recall", delayed: "delayed_recall" };
+
+        function toggleAISettings() { document.getElementById("ai-settings").classList.toggle("hidden"); }
+
+        function getAIConfig() {
+            return {
+                baseUrl: (document.getElementById("ai-base-url").value.trim() || "http://localhost:8000/v1").replace(/\/+$/, ""),
+                model: document.getElementById("ai-model").value.trim() || "granite-4.1-8b-nvfp4",
+                key: document.getElementById("ai-key").value.trim(),
+                tier: document.getElementById("ai-tier").value || "2",
+                temperature: parseFloat(document.getElementById("ai-temp").value) || 0.1,
+                jsonFormat: document.getElementById("ai-json-format").checked,
+            };
+        }
+        function loadAIConfig() {
+            let cfg = {};
+            try { cfg = JSON.parse(localStorage.getItem(AI_CONFIG_KEY) || "{}"); } catch (e) {}
+            document.getElementById("ai-base-url").value = cfg.baseUrl || "http://localhost:8000/v1";
+            document.getElementById("ai-model").value = cfg.model || "granite-4.1-8b-nvfp4";
+            document.getElementById("ai-tier").value = cfg.tier || "2";
+            document.getElementById("ai-temp").value = (cfg.temperature != null ? cfg.temperature : 0.1);
+            document.getElementById("ai-json-format").checked = cfg.jsonFormat !== false;
+            try { document.getElementById("ai-key").value = sessionStorage.getItem(AI_KEY_KEY) || ""; } catch (e) {}
+        }
+        function saveAIConfig() {
+            const cfg = getAIConfig();
+            try { localStorage.setItem(AI_CONFIG_KEY, JSON.stringify({ baseUrl: cfg.baseUrl, model: cfg.model, tier: cfg.tier, temperature: cfg.temperature, jsonFormat: cfg.jsonFormat })); } catch (e) {}
+            try { if (cfg.key) sessionStorage.setItem(AI_KEY_KEY, cfg.key); else sessionStorage.removeItem(AI_KEY_KEY); } catch (e) {}
+        }
+
+        function setAIStatus(kind, msg) {
+            const el = document.getElementById("ai-status");
+            if (!el) return;
+            const color = { loading: "text-slate-500", ok: "text-emerald-700", error: "text-red-600" }[kind] || "text-slate-500";
+            el.className = `text-xs mt-1 ${color}`;
+            el.innerHTML = (kind === "loading" ? '<i class="fa-solid fa-spinner fa-spin"></i> ' : "") + msg;
+        }
+
+        let _stimulusDataUrlCache = null;
+        async function getStimulusDataUrl() {
+            if (_stimulusDataUrlCache) return _stimulusDataUrlCache;
+            const resp = await fetch("rocft_stimulus.png");
+            const blob = await resp.blob();
+            _stimulusDataUrlCache = await new Promise((res, rej) => {
+                const r = new FileReader();
+                r.onload = () => res(r.result);
+                r.onerror = rej;
+                r.readAsDataURL(blob);
+            });
+            return _stimulusDataUrlCache;
+        }
+        function currentDrawingDataUrl() {
+            const img = document.getElementById("examinee-drawing");
+            const src = img && img.getAttribute("src");
+            return (src && src.startsWith("data:")) ? src : null;
+        }
+
+        function tolerantJsonParse(raw) {
+            if (raw == null) return null;
+            if (typeof raw === "object") return raw;
+            let s = String(raw).trim().replace(/^```(?:json)?/i, "").replace(/```$/, "").trim();
+            try { return JSON.parse(s); } catch (e) {}
+            const start = s.indexOf("{"), end = s.lastIndexOf("}");
+            if (start >= 0 && end > start) { try { return JSON.parse(s.slice(start, end + 1)); } catch (e) {} }
+            return null;
+        }
+        function snapScore(v) {
+            return [0, 0.5, 1, 2].reduce((a, b) => Math.abs(b - v) < Math.abs(a - v) ? b : a);
+        }
+        function applyAutoScores(trialKey, parsed) {
+            aiSuggested[trialKey] = new Set();
+            for (let id = 1; id <= 18; id++) {
+                let v = parsed.items[id] != null ? parsed.items[id] : parsed.items[String(id)];
+                if (v == null) continue;
+                v = Number(v);
+                if (isNaN(v)) continue;
+                scores[trialKey][id] = snapScore(v);
+                aiSuggested[trialKey].add(id);
+            }
+            renderTable();
+        }
+
+        async function runAutoScore() {
+            const cfg = getAIConfig();
+            const trialKey = document.getElementById("ai-trial").value;
+            const condition = AI_CONDITION[trialKey];
+            const drawing = currentDrawingDataUrl();
+            const btn = document.getElementById("ai-run-btn");
+            if (!drawing) { setAIStatus("error", "⚠️ Upload the examinee drawing first (Examinee Drawing tab), then auto-score."); return; }
+            saveAIConfig();
+            btn.disabled = true; btn.classList.add("opacity-60");
+            setAIStatus("loading", `Scoring ${COND[trialKey].label} with ${cfg.model} (tier ${cfg.tier})…`);
+            try {
+                const stimulus = await getStimulusDataUrl();
+                const system = cfg.tier === "3" ? TIER3_SYSTEM : TIER2_SYSTEM;
+                const user = cfg.tier === "3" ? buildTier3User(condition) : buildTier2User(condition);
+                const body = {
+                    model: cfg.model,
+                    temperature: cfg.temperature,
+                    max_tokens: 1024,
+                    messages: [
+                        { role: "system", content: system },
+                        {
+                            role: "user", content: [
+                                { type: "text", text: "IMAGE 1 — Stimulus (correct figure):" },
+                                { type: "image_url", image_url: { url: stimulus, detail: "high" } },
+                                { type: "text", text: `IMAGE 2 — Patient's ${condition} drawing:` },
+                                { type: "image_url", image_url: { url: drawing, detail: "high" } },
+                                { type: "text", text: user },
+                            ],
+                        },
+                    ],
+                };
+                if (cfg.jsonFormat) body.response_format = { type: "json_object" };
+                const headers = { "Content-Type": "application/json" };
+                if (cfg.key) headers["Authorization"] = `Bearer ${cfg.key}`;
+                const resp = await fetch(`${cfg.baseUrl}/chat/completions`, { method: "POST", headers, body: JSON.stringify(body) });
+                if (!resp.ok) { const t = await resp.text().catch(() => ""); throw new Error(`HTTP ${resp.status} — ${t.slice(0, 200)}`); }
+                const data = await resp.json();
+                const rawContent = data && data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content;
+                if (!rawContent) throw new Error("No content in the model response.");
+                const parsed = tolerantJsonParse(rawContent);
+                if (!parsed || !parsed.items) throw new Error("Could not parse 18-item JSON from the model output: " + String(rawContent).slice(0, 160));
+                applyAutoScores(trialKey, parsed);
+                const flags = parsed.criterion_flags && Object.keys(parsed.criterion_flags).length ? parsed.criterion_flags : null;
+                aiMeta[trialKey] = {
+                    tier: cfg.tier, model: cfg.model,
+                    confidence: parsed.confidence != null ? parsed.confidence : null,
+                    notes: parsed.notes || "", flags,
+                };
+                const localTotal = conditionTotal(trialKey);
+                const modelTotal = parsed.total_score != null ? parsed.total_score : localTotal;
+                setAIStatus("ok", `✅ ${COND[trialKey].label}: filled ${fmt(localTotal)}/36 (model total ${modelTotal}${parsed.confidence != null ? `, confidence ${parsed.confidence}` : ""}). Ringed scores are AI suggestions — review &amp; adjust.`);
+                updateCalculations();
+            } catch (e) {
+                const msg = (e instanceof TypeError)
+                    ? `Couldn't reach ${cfg.baseUrl}. Check the URL and that the server allows cross-origin (CORS) requests from this page's origin. (${e.message})`
+                    : e.message;
+                setAIStatus("error", "⚠️ " + msg);
+            } finally {
+                btn.disabled = false; btn.classList.remove("opacity-60");
+            }
         }
 
         // ──────────────────────────────────────────────────────────────────────
@@ -1017,6 +1364,19 @@
             if (d.quals.length) d.quals.forEach(q => m.push(`- ${q.name} (${q.hits.join("/")})`));
             else m.push(`- None noted.`);
             m.push(``, `## Clinical Narrative`, ``, d.g.narrative || "—", ``);
+            // Automated-scoring provenance (only if AI suggestions were used)
+            const aiTrials = CONDITIONS.filter(c => aiMeta[c.key]);
+            if (aiTrials.length) {
+                m.push(`## Automated Scoring`, ``);
+                aiTrials.forEach(c => {
+                    const a = aiMeta[c.key];
+                    let line = `- **${c.label}:** tier ${a.tier} (${a.model})`;
+                    if (a.confidence != null) line += `, model confidence ${a.confidence}`;
+                    if (a.notes) line += ` — ${a.notes}`;
+                    m.push(line);
+                });
+                m.push(``, `_AI-assisted scores are clinician-reviewed suggestions, not a substitute for examiner judgment._`, ``);
+            }
             m.push(`---`, ``, `*Scored with the ROCFT Interactive Scoring Dashboard. Osterrieth 18-unit system (each unit 0–2, max 36). Norms: Meyers & Meyers (1995).*`);
             return m.join("\n");
         }
@@ -1159,6 +1519,7 @@ ${pencils}
         renderTable();
         renderPencils();
         updateOverlay();
+        loadAIConfig();
 
         // Restore an in-progress session (same browser tab only)
         let restored = false;

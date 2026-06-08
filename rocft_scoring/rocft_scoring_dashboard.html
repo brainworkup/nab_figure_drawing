@@ -1245,17 +1245,19 @@ ${ITEMS_JSON}
             if (start >= 0 && end > start) { try { return JSON.parse(s.slice(start, end + 1)); } catch (e) {} }
             return null;
         }
-        function snapScore(v) {
-            return [0, 0.5, 1, 2].reduce((a, b) => Math.abs(b - v) < Math.abs(a - v) ? b : a);
+        function snapScore(v, allowHalf = true) {
+            const allowed = allowHalf ? [0, 0.5, 1, 2] : [0, 1, 2];
+            return allowed.reduce((a, b) => Math.abs(b - v) < Math.abs(a - v) ? b : a);
         }
         function applyAutoScores(trialKey, parsed) {
             aiSuggested[trialKey] = new Set();
+            const allowHalf = String(parsed && parsed.tier) !== "3";
             for (let id = 1; id <= 18; id++) {
                 let v = parsed.items[id] != null ? parsed.items[id] : parsed.items[String(id)];
                 if (v == null) continue;
                 v = Number(v);
                 if (isNaN(v)) continue;
-                scores[trialKey][id] = snapScore(v);
+                scores[trialKey][id] = snapScore(v, allowHalf);
                 aiSuggested[trialKey].add(id);
             }
             renderTable();

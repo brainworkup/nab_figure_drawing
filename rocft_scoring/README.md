@@ -23,6 +23,15 @@ alongside it (they're referenced by relative path).
 - **Stimulus overlay** viewer (upload the examinee drawing, overlay the canonical
   figure with adjustable opacity/scale/rotation/offset) + **18-unit reference map**.
 - **Auto-generated, editable clinical narrative**.
+- **AI Auto-Score (beta)** (Unit Accuracy tab) — pre-score a trial from the uploaded
+  drawing with a vision model. Ports the `rocft/scorer` tier-2 (18-item) and tier-3
+  (Taylor-criteria) prompts; sends the bundled stimulus + the drawing to a configurable
+  **OpenAI-compatible** endpoint (defaults to `http://localhost:8000/v1`, local-first).
+  AI-filled units are ringed as **review suggestions** (the ring clears when you edit a
+  unit), and model confidence/notes are recorded in the report's "Automated Scoring"
+  section. The endpoint must allow cross-origin (CORS) requests from the page; the API
+  key (if any) is kept in `sessionStorage` only. AI scores are clinician-reviewed
+  suggestions, not a substitute for examiner judgment.
 - **Report export** (Summary tab) — one full report (scores + norms + qualitative +
   narrative) you can:
   - **Copy** to clipboard (Markdown)
@@ -36,7 +45,9 @@ alongside it (they're referenced by relative path).
   autosave (sessionStorage — survives reload, not persisted long-term).
 - **Print** — print CSS renders the Summary & Report tab cleanly.
 
-This is a manual scoring aid; it does **not** auto-score from an image.
+Manual scoring is the core workflow. The optional **AI Auto-Score (beta)** above
+pre-fills the 18 units from a drawing as clinician-reviewed suggestions — it does
+not replace examiner judgment.
 
 ## Assets
 

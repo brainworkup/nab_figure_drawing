@@ -45,7 +45,9 @@ alongside it (they're referenced by relative path).
   autosave (sessionStorage — survives reload, not persisted long-term).
 - **Print** — print CSS renders the Summary & Report tab cleanly.
 
-This is a manual scoring aid; it does **not** auto-score from an image.
+Manual scoring is the core workflow. The optional **AI Auto-Score (beta)** above
+pre-fills the 18 units from a drawing as clinician-reviewed suggestions — it does
+not replace examiner judgment.
 
 ## Assets
 
